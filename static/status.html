@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Status</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="js/socket.io.min.js"></script>
+  <script src="messages.js"></script>
+  <link rel="icon" href="favicon.png">
+</head>
+<body>
+    <table style="width:100%;">
+      <tr style="vertical-align: baseline;">
+        <td><h1 style="border-bottom: none; margin: 0;"><a href="index.html" style=text-decoration:none>Status</a></h1></td>
+        <td>
+        <p>Send: <input type="text" id="send_text" onkeypress="doit_onkeypress(event);"/></p>
+        </td>
+      </tr>
+    </table>
+  <h2>Navigation Status</h2>
+    <table class="dataframe, dataframe2">
+        <thead>
+          <tr style="text-align:right;">
+            <th>Measurement</th>
+            <th>Value</th>
+            <th>Units</th>
+          </tr>
+        </thead>
+        <tr> <td>Navigation Status</td>  <td id="mi_NavStatus">---</td> <td></td> </tr>
+        <tr> <td>GpsTime</td>            <td id="ms_GpsTime">---</td> <td></td> </tr>
+        <tr> <td>UtcTime</td>            <td id="ms_UtcTime">---</td> <td></td> </tr>
+  </table>
+
+  <h2>Accuracy</h2>
+  <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th>
+        <th>Value</th>
+        <th>Units</th>
+      </tr>
+    </thead>
+    <!-- Note: the id of the <td> cell used to match the key in status -->
+    <!-- See onMessage() for format -->
+    <tr> <td>Position north accuracy</td>  <td id="mf3_NorthAcc">---</td> <td>m</td> </tr>
+    <tr> <td>Position east accuracy</td>  <td id="mf3_EastAcc">---</td> <td>m</td> </tr>
+    <tr> <td>Position down accuracy</td>  <td id="mf3_AltAcc">---</td> <td>m</td> </tr>
+    <tr> <td>Velocity north accuracy</td>  <td id="mf3_VnAcc">---</td> <td>m/s</td> </tr>
+    <tr> <td>Velocity east accuracy</td>  <td id="mf3_VeAcc">---</td> <td>m/s</td> </tr>
+    <tr> <td>Velocity down accuracy</td>  <td id="mf3_VdAcc">---</td> <td>m/s</td> </tr>
+    <tr> <td>Heading accuracy</td>  <td id="mf3_HeadingAcc">---</td> <td>deg</td> </tr>
+    <tr> <td>Pitch accuracy</td>  <td id="mf3_PitchAcc">---</td> <td>deg</td> </tr>
+    <tr> <td>Roll accuracy</td>  <td id="mf3_RollAcc">---</td> <td>deg</td> </tr>
+  </table>
+  
+  <h2>GNSS</h2>
+  <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th>
+        <th>Value</th>
+        <th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Number of satellites</td>  <td id="mi_GpsNumObs">---</td> <td></td> </tr>
+    <tr> <td>Position mode</td>         <td id="mi_GpsPosMode">---</td> <td></td> </tr>
+    <tr> <td>Velocity mode</td>         <td id="mi_GpsVelMode">---</td> <td></td> </tr>
+    <tr> <td>Attitude mode</td>         <td id="mi_GpsAttMode">---</td> <td></td> </tr>
+    <tr> <td>Number of satellites for position</td>         <td id="mi_NumSatsUsedPos">---</td> <td></td> </tr>
+    <tr> <td>Number of satellites for velocity</td>         <td id="mi_NumSatsUsedVel">---</td> <td></td> </tr>
+    <tr> <td>Number of satellites for attitude</td>         <td id="mi_NumSatsUsedAtt">---</td> <td></td> </tr>
+    
+    <tr> <td>Differential age</td>      <td id="mf2_GpsDiffAge">---</td> <td>s</td> </tr>
+    <tr> <td>Base station ID</td>       <td id="ms_BaseStationId">---</td> <td></td> </tr>
+    <tr> <td>Consecutive rejected GNSS positions</td>       <td id="mi_GpsPosReject">---</td> <td></td> </tr>
+    <tr> <td>Consecutive rejected GNSS velocities</td>       <td id="mi_GpsVelReject">---</td> <td></td> </tr>
+    <tr> <td>Consecutive rejected GNSS attitudes</td>       <td id="mi_GpsAttReject">---</td> <td></td> </tr>
+  </table>
+
+  <h2>NTRIP</h2>
+  <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th>
+        <th>Value</th>
+        <th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Differential GPS chars received</td>          <td id="mi_DGpsChars">---</td> <td></td> </tr>
+    <tr> <td>Differential GPS packets received</td>        <td id="mi_DGpsPkts">---</td> <td></td> </tr>
+    <tr> <td>Differential GPS chars skipped</td>           <td id="mi_DGpsCharsSkipped">---</td> <td></td> </tr>
+    <tr> <td>Differential GPS NTRIP status</td>            <td id="mi_DGpsNtripStatus">---</td> <td></td> </tr>
+    <tr> <td>Wifi connection status</td>                   <td id="mi_WifiConnectionStatus">---</td> <td></td> </tr>
+  </table>
+
+  <h2>Innovations</h2>
+  <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th>
+        <th>Value</th>
+        <th>Filtered</th>
+      </tr>
+    </thead>
+    <tr> <td>Innovation position X</td>   <td id="mf1_InnPosX">---</td> <td id="mf1_InnPosXFilt">---</td> </tr>
+    <tr> <td>Innovation position Y</td>   <td id="mf1_InnPosY">---</td> <td id="mf1_InnPosYFilt">---</td> </tr>
+    <tr> <td>Innovation position Z</td>   <td id="mf1_InnPosZ">---</td> <td id="mf1_InnPosZFilt">---</td> </tr>
+    <tr> <td>Innovation velocity X</td>   <td id="mf1_InnVelX">---</td> <td id="mf1_InnVelXFilt">---</td> </tr>
+    <tr> <td>Innovation velocity Y</td>   <td id="mf1_InnVelY">---</td> <td id="mf1_InnVelYFilt">---</td> </tr>
+    <tr> <td>Innovation velocity Z</td>   <td id="mf1_InnVelZ">---</td> <td id="mf1_InnVelZFilt">---</td> </tr>
+    <tr> <td>Innovation heading</td>      <td id="mf1_InnHeading">---</td> <td id="mf1_InnHeadingFilt">---</td> </tr>
+    <tr> <td>Innovation pitch</td>        <td id="mf1_InnPitch">---</td> <td id="mf1_InnPitchFilt">---</td> </tr>
+    <tr> <td>Innovation no slip</td>      <td id="mf1_InnNoSlipH">---</td> <td></td> </tr>
+    <tr> <td>Innovation heading lock</td> <td id="mf1_InnHeadingH">---</td> <td></td> </tr>
+    <tr> <td>Innovation wheel speed</td>  <td id="mf1_InnWSpeed">---</td> <td></td> </tr>
+    <tr> <td>Innovation zero velocity X</td>   <td id="mf1_ZeroVelX">---</td> <td></td> </tr>
+    <tr> <td>Innovation zero velocity Y</td>   <td id="mf1_ZeroVelY">---</td> <td></td> </tr>
+    <tr> <td>Innovation zero velocity Z</td>   <td id="mf1_ZeroVelZ">---</td> <td></td> </tr>
+
+  </table>
+
+  <h2>IMU</h2>
+    <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th><th>Value</th><th>Accuracy</th><th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Gyro X Bias</td>  <td id="mf3_WxBias">---</td> <td id="mf3_WxBiasAcc">---</td><td>deg/s</td> </tr>
+    <tr> <td>Gyro Y Bias</td>  <td id="mf3_WyBias">---</td> <td id="mf3_WyBiasAcc">---</td><td>deg/s</td> </tr>
+    <tr> <td>Gyro Z Bias</td>  <td id="mf3_WzBias">---</td> <td id="mf3_WzBiasAcc">---</td><td>deg/s</td> </tr>
+    <tr> <td>Gyro X Scale factor</td>  <td id="mf4_WxSf">---</td> <td id="mf4_WxSfAcc">---</td><td></td> </tr>
+    <tr> <td>Gyro Y Scale factor</td>  <td id="mf4_WySf">---</td> <td id="mf4_WySfAcc">---</td><td></td> </tr>
+    <tr> <td>Gyro Z Scale factor</td>  <td id="mf4_WzSf">---</td> <td id="mf4_WzSfAcc">---</td><td></td> </tr>
+    <tr> <td>Accelerometer X Bias</td>  <td id="mf4_AxBias">---</td> <td id="mf4_AxBiasAcc">---</td><td>m/s&sup2</td> </tr>
+    <tr> <td>Accelerometer Y Bias</td>  <td id="mf4_AyBias">---</td> <td id="mf4_AyBiasAcc">---</td><td>m/s&sup2</td> </tr>
+    <tr> <td>Accelerometer Z Bias</td>  <td id="mf4_AzBias">---</td> <td id="mf4_AzBiasAcc">---</td><td>m/s&sup2</td> </tr>
+  </table>
+
+  <h2>GNSS states</h2>
+    <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th><th>Value</th><th>Accuracy</th><th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>IMU to GNSS antenna X</td>  <td id="mf3_GAPx">---</td> <td id="mf3_GAPxAcc">---</td><td>m</td> </tr>
+    <tr> <td>IMU to GNSS antenna Y</td>  <td id="mf3_GAPy">---</td> <td id="mf3_GAPyAcc">---</td><td>m</td> </tr>
+    <tr> <td>IMU to GNSS antenna Z</td>  <td id="mf3_GAPz">---</td> <td id="mf3_GAPzAcc">---</td><td>m</td> </tr>
+    <tr> <td>IMU to GNSS heading</td>    <td id="mf3_AtH">---</td>  <td id="mf3_AtHAcc">---</td><td>deg</td> </tr>
+    <tr> <td>IMU to GNSS pitch</td>      <td id="mf3_AtP">---</td>  <td id="mf3_AtPAcc">---</td><td>deg</td> </tr>
+    <tr> <td>Dual-GNSS baseline</td>     <td id="mf3_BaseLineLength">---</td>  <td id="mf3_BaseLineLengthAcc">---</td><td>m</td> </tr>
+    <tr> <td>Heading misalignment</td>     <td id="mf3_HeadingMisAlign">---</td>  <td id="mf3_HeadingMisAlignAcc">---</td><td>deg</td> </tr>
+  </table>
+
+  <h2>Local reference frame</h2>
+    <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th><th>Value</th><th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Reference frame latitude</td>  <td id="mf8_RefFrameLat">---</td><td>deg</td> </tr>
+    <tr> <td>Reference frame longitude</td> <td id="mf8_RefFrameLon">---</td><td>deg</td> </tr>
+    <tr> <td>Reference frame altitude</td>  <td id="mf8_RefFrameAlt">---</td><td>m</td> </tr>
+    <tr> <td>Reference frame heading</td>   <td id="mf3_RefFrameHeading">---</td><td>deg</td> </tr>
+    <tr> <td>Reference frame latitude radius</td>    <td id="mf1_RefLatRadius">---</td><td>m/deg</td> </tr>
+    <tr> <td>Reference frame longitude radius</td>   <td id="mf3_RefLonRadius">---</td><td>m/deg</td> </tr>
+    <tr> <td>Reference frame heading cos</td>   <td id="mf3_RefHeadingCos">---</td><td>-</td> </tr>
+    <tr> <td>Reference frame heading sin</td>   <td id="mf3_RefHeadingSin">---</td><td>-</td> </tr>
+  </table>
+
+  <h2>Internal timing</h2>
+    <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th><th>Value</th><th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Time Mismatch</td>  <td id="mi_TimeMismatch">---</td> <td>ms</td> </tr>
+    <tr> <td>Imu time difference</td>  <td id="mi_ImuTimeDiff">---</td> <td>ms</td> </tr>
+    <tr> <td>Imu time margin</td>  <td id="mi_ImuTimeMargin">---</td> <td>ms</td> </tr>
+    <tr> <td>Imu loop time</td>  <td id="mi_ImuLoopTime">---</td> <td>ms</td> </tr>
+    <tr> <td>Output loop time</td>  <td id="mi_OpLoopTime">---</td> <td>ms</td> </tr>
+    <tr> <td>BNS lag</td>  <td id="mi_BnsLag">---</td> <td>ms</td> </tr>
+  </table>
+
+
+  <h2>System</h2>
+    <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th><th>Value</th><th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Serial number</td>     <td id="mi_SerialNumber">---</td> <td></td> </tr>
+    <tr> <td>Dev Id</td>            <td id="ms_DevId">---</td>        <td></td> </tr>
+    <tr> <td>Disk space</td>        <td id="mi_DiskSpace">---</td>   <td></td> </tr>
+    <tr> <td>File size</td>         <td id="mi_FileSize">---</td>    <td></td> </tr>
+    <tr> <td>Up time</td>           <td id="mi_UpTime">---</td>    <td>s</td> </tr>    
+    <tr> <td>OS Version 1</td>      <td id="mi_OsVersion1">---</td>    <td></td> </tr>
+    <tr> <td>OS Version 2</td>      <td id="mi_OsVersion2">---</td>    <td></td> </tr>
+    <tr> <td>OS Version 3</td>      <td id="mi_OsVersion3">---</td>    <td></td> </tr>
+    <tr> <td>IMU Type</td>          <td id="ms_ImuType">---</td>    <td></td> </tr>
+    <tr> <td>GPS primary type</td>  <td id="ms_GpsPrimary">---</td>    <td></td> </tr>
+    <tr> <td>GPS secondary type</td><td id="ms_GpsSecondary">---</td>    <td></td> </tr>
+    <tr> <td>Interconnection PCB type</td><td id="ms_InterPcbType">---</td>    <td></td> </tr>
+    <tr> <td>Front PCB type</td>    <td id="ms_FrontPcbType">---</td>    <td></td> </tr>
+    <tr> <td>Interconnection PCB DevId</td><td id="ms_InterSwId">---</td>    <td></td> </tr>
+  </table>
+
+
+  <h2>Decoders</h2>
+    <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th><th>Value</th><th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Command chars</td>                 <td id="mi_CmdChars">---</td> <td></td> </tr>
+    <tr> <td>Command packets</td>               <td id="mi_CmdPkts">---</td> <td></td> </tr>
+    <tr> <td>Command chars skipped</td>         <td id="mi_CmdCharsSkipped">---</td> <td></td> </tr>
+    <tr> <td>Command errors</td>                <td id="mi_CmdErrors">---</td> <td></td> </tr>
+    <tr> <td>GNSS primary chars</td>            <td id="mi_GpsPrimaryChars">---</td> <td></td> </tr>
+    <tr> <td>GNSS primary packets</td>          <td id="mi_GpsPrimaryPkts">---</td> <td></td> </tr>
+    <tr> <td>GNSS primary chars skipped</td>    <td id="mi_GpsPrimaryCharsSkipped">---</td> <td></td> </tr>
+    <tr> <td>GNSS primary packets too old</td>  <td id="mi_GpsPrimaryOldPkts">---</td> <td></td> </tr>
+    <tr> <td>GNSS secondary chars</td>            <td id="mi_GpsSecondaryChars">---</td> <td></td> </tr>
+    <tr> <td>GNSS secondary packets</td>          <td id="mi_GpsSecondaryPkts">---</td> <td></td> </tr>
+    <tr> <td>GNSS secondary chars skipped</td>    <td id="mi_GpsSecondaryCharsSkipped">---</td> <td></td> </tr>
+    <tr> <td>GNSS secondary packets too old</td>  <td id="mi_GpsSecondaryOldPkts">---</td> <td></td> </tr>
+  </table>
+
+  <h2>Configuration</h2>
+    <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th><th>Value</th><th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Vehicle heading</td>           <td id="mf1_VehHeading">---</td>        <td>deg</td> </tr>
+    <tr> <td>Vehicle pitch</td>             <td id="mf1_VehPitch">---</td>          <td>deg</td> </tr>
+    <tr> <td>Vehicle roll</td>              <td id="mf1_VehRoll">---</td>           <td>deg</td> </tr>
+    <tr> <td>Remote lever arm X</td>        <td id="mf1_RemoveLeverArmX">---</td>   <td>m</td> </tr>
+    <tr> <td>Remote lever arm Y</td>        <td id="mf1_RemoveLeverArmY">---</td>   <td>m</td> </tr>
+    <tr> <td>Remote lever arm Z</td>        <td id="mf1_RemoveLeverArmZ">---</td>   <td>m</td> </tr>
+    <tr> <td>Zero velocity lever arm X</td> <td id="mf1_ZeroVelLeverArmX">---</td>  <td>m</td> </tr>
+    <tr> <td>Zero velocity lever arm Y</td> <td id="mf1_ZeroVelLeverArmY">---</td>  <td>m</td> </tr>
+    <tr> <td>Zero velocity lever arm Z</td> <td id="mf1_ZeroVelLeverArmZ">---</td>  <td>m</td> </tr>
+    
+    <tr> <td>Option: level</td>             <td id="mi_OptionLevel">- - -</td>      <td></td></tr>
+    <tr> <td>Option: vibration</td>         <td id="mi_OptionVibration">- - -</td>  <td></td></tr>
+    <tr> <td>Option: GNSS accuracy</td>     <td id="mi_OptionGpsAcc">- - -</td>     <td></td></tr>
+    <tr> <td>Option: UDP</td>               <td id="mi_OptionUdp">- - -</td>        <td></td></tr>
+    <tr> <td>Option: serial 1</td>          <td id="mi_OptionSer1">- - -</td>       <td></td></tr>
+    <tr> <td>Option: serial 2</td>          <td id="mi_OptionSer2">- - -</td>       <td></td></tr>
+    <tr> <td>Option: heading</td>           <td id="mi_OptionHeading">- - -</td>    <td></td></tr>
+    <tr> <td>Option: heave</td>             <td id="mi_OptionHeave">- - -</td>      <td></td></tr>
+    
+  </table>
+
+  <script>
+    window.addEventListener("load", function() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const ip = urlParams.get('ip');
+      startSocket('nav-status-'+ip, updateId);
+    });
+    function doit_onkeypress(event) {
+      const key = event.key || event.keyCode;
+
+      if (key === 'Enter' || key === 13) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ip = urlParams.get('ip');
+
+        const input = document.getElementById("send_text").value;
+        socket.emit('user-command?ip='+ip,input);
+      }
+    }
+
+  </script>
+</body>
+</html>

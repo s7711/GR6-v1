@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Status</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.png">
+  <script src="js/socket.io.min.js"></script>
+  <script src="messages.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-moment/1.0.1/chartjs-adapter-moment.min.js"></script>
+</head>
+  <body>
+    <h1><a href="index.html" style=text-decoration:none>Speed</a></h1>
+    <div class="rcorners1">
+      <p class="meas1">Speed (km/h &plusmn;<span id="mf2_SpeedKmhAcc">?</span> 1&sigma;)</p>
+      <p class="value1" id="mf2_SpeedKmh">- - -</p>
+    </div>
+    <div class="rcorners1">
+      <p class="meas1">Heading (degrees &plusmn;<span id="mf2_HeadingAcc">?</span> 1&sigma;)</p>
+      <p class="value1" id="mf2_Heading">- - -</p>
+    </div>
+    <table style="width:100%;">
+      <tr>
+        <td>
+          <div class="rcorners2">
+            <p class="meas2">GNSS satellites</p>
+            <p class="value2" id="mi_GpsNumObs">- - -</p>
+          </div>
+        </td>
+        <td>
+          <div class="rcorners2">
+            <p class="meas2">GNSS position mode</p>
+            <p class="value2" id="mi_GpsPosMode">- - -</p>
+          </div>
+        </td>
+        <td>
+          <div class="rcorners2">
+            <p class="meas2">GNSS velocity mode</p>
+            <p class="value2" id="mi_GpsVelMode">- - -</p>
+          </div>
+        </td>
+        <td>
+          <div class="rcorners2">
+            <p class="meas2">GNSS attitude mode</p>
+            <p class="value2" id="mi_GpsAttMode">- - -</p>
+          </div>
+        </td>
+        <td>
+          <div class="rcorners2">
+            <p class="meas2">Innovations</p>
+            <table>
+              <tr>
+                <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPosX"></strong></div></td>
+                <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPosY"></strong></div></td>
+                <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPosZ"></strong></div></td>
+                <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnVelX"></strong></div></td>
+                <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnVelY"></strong></div></td>
+                <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnVelZ"></strong></div></td>
+                <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnHeading"></strong></div></td>
+                <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPitch"></strong></div></td>
+              </tr>
+            </table>
+          </div>
+        </td>
+      </tr>
+    </table>
+    <table style="width:100%;">
+      <tr>
+        <td style="width: 50%;">
+          <div class="rcorners2">
+            <div class="chart-container">
+              <canvas id="chart_a"></canvas>
+            </div>
+          </div>
+        </td>
+        <td style="width: 50%;">
+          <div class="rcorners2">
+            <div class="chart-container">
+              <canvas id="chart_w"></canvas>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  <script defer>
+    function onNavData(data) {
+      data.SpeedKmh = Math.sqrt(data.Vn**2 + data.Ve**2) * 3.6;
+      updateCharts(data);
+      updateId(data)
+    }
+    function onNavStatus(data) {
+      data.SpeedKmhAcc = Math.sqrt(data.VnAcc**2 + data.VeAcc**2) * 3.6;
+      updateInnovationBar( "InnPosX", data.InnPosXFilt )        
+      updateInnovationBar( "InnPosY", data.InnPosYFilt )        
+      updateInnovationBar( "InnPosZ", data.InnPosZFilt )        
+      updateInnovationBar( "InnVelX", data.InnVelXFilt )        
+      updateInnovationBar( "InnVelY", data.InnVelYFilt )        
+      updateInnovationBar( "InnVelZ", data.InnVelZFilt )        
+      updateInnovationBar( "InnHeading", data.InnHeadingFilt )        
+      updateInnovationBar( "InnPitch", data.InnPitchFilt )
+      updateId(data)
+    }
+
+    // The innovation bars are simply two elements, the outer one
+    // has the border. The inner one colors the bar from the bottom.
+    // Update the height (in %) from the innovation, assuming
+    // the maximum innovation value is 3.0.
+    function updateInnovationBar( el, inn )
+    {
+      inn = inn * 100.0 / 3.0;
+      if( inn < 0.0 ) inn = -inn; // Filtered innovations should already be +ve
+      if( inn > 100.0 ) inn = 100.0;
+      document.getElementById(el).style="height:"+inn+"%";
+    }
+
+    window.addEventListener("load", function() {
+      initCharts();
+      const urlParams = new URLSearchParams(window.location.search);
+      const ip = urlParams.get('ip');
+      startSocket('nav-status-' + ip, onNavStatus);
+      startSocket('nav-data-' + ip, onNavData);
+    });
+
+    function doitOnKeyPress(event) {
+      const key = event.key || event.keyCode;
+
+      if (key === 'Enter' || key === 13) {
+        const input = document.getElementById("send_text").value;
+        websocket.send(input);
+      }
+    }
+
+let chartA, chartW;
+const MAX_POINTS = 120;
+
+// Helper to create a time series scatter chart
+function createScatterChart(ctx, labelX, labelY, labelZ, yMin, yMax, yLabel) {
+    return new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                { label: labelX, data: [], borderColor: 'red', backgroundColor: 'rgba(255,0,0,0.5)', showLine: true, radius: 0, borderWidth: 2 },
+                { label: labelY, data: [], borderColor: 'green', backgroundColor: 'rgba(0,255,0,0.5)', showLine: true, radius: 0, borderWidth: 2 },
+                { label: labelZ, data: [], borderColor: 'blue', backgroundColor: 'rgba(0,0,255,0.5)', showLine: true, radius: 0, borderWidth: 2 }
+            ]
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: { unit: 'second', tooltipFormat: 'HH:mm:ss' },
+                    title: { display: true, text: 'Time' }
+                },
+                y: {
+                    min: yMin,
+                    max: yMax,
+                    title: { display: true, text: yLabel }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+// Call this once on page load
+function initCharts() {
+    const ctxA = document.getElementById('chart_a').getContext('2d');
+    const ctxW = document.getElementById('chart_w').getContext('2d');
+    chartA = createScatterChart(ctxA, 'Ax', 'Ay', 'Az', -15, 15, 'Acceleration (m/s²)');
+    chartW = createScatterChart(ctxW, 'Wx', 'Wy', 'Wz', -30, 30, 'Angular Rate (deg/s)');
+}
+
+// Call this for each new nav-data point
+function updateCharts(data) {
+    if (!chartA || !chartW) return;
+    const t = new Date(data.GpsTime);
+
+    // Accelerations
+    chartA.data.datasets[0].data.push({ x: t, y: data.Ax });
+    chartA.data.datasets[1].data.push({ x: t, y: data.Ay });
+    chartA.data.datasets[2].data.push({ x: t, y: data.Az });
+    // Angular rates
+    chartW.data.datasets[0].data.push({ x: t, y: data.Wx });
+    chartW.data.datasets[1].data.push({ x: t, y: data.Wy });
+    chartW.data.datasets[2].data.push({ x: t, y: data.Wz });
+
+    // Keep only the last MAX_POINTS
+    for (let ds of chartA.data.datasets) {
+        if (ds.data.length > MAX_POINTS) ds.data.shift();
+    }
+    for (let ds of chartW.data.datasets) {
+        if (ds.data.length > MAX_POINTS) ds.data.shift();
+    }
+
+    chartA.update('none');
+    chartW.update('none');
+}
+  </script>
+</body>
+</html>

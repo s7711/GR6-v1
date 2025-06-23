@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>OxTS GAD</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="favicon.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="js/socket.io.min.js"></script>
+    <script src="messages.js"></script>
+  </head>
+  <body>
+    <!-- Title: Generic Aiding -->
+    <table style="width:100%;">
+      <tr style="vertical-align: baseline;">
+        <td><h1 style="border-bottom: none; margin: 0;"><a href="index.html" style=text-decoration:none>Generic Aiding</a></h1></td>
+        <td>
+        <p>Send: <input type="text" id="send_text" onkeypress="doit_onkeypress(event);"/></p>
+        </td>
+      </tr>
+    </table>
+    
+    <!-- Speed and heading -->
+    <div style="display:flex;flex-flow:row wrap;">
+      <!-- Speed -->    
+      <div class="rcorners1" style="flex-grow:1;">
+        <p class="meas1">Speed (m/s &plusmn;<span id="mf3_AccSpeedMps">?</span> 1&sigma;)</p>
+        <p class="value1" id="mf3_SpeedMps">- - -</p>
+      </div>
+      <!-- Heading -->    
+      <div class="rcorners1" style="flex-grow:1;">
+        <p class="meas1">Heading (degrees &plusmn;<span id="mf2_HeadingAcc">?</span> 1&sigma;)</p>
+        <p class="value1" id="mf2_Heading">- - -</p>
+      </div>
+    </div>    
+    
+    <!-- XY chart and camera image -->
+    <div style="display:flex;flex-flow:row wrap;">
+      <!-- XY chart -->        
+      <div style="flex-grow:1;">
+        <canvas id="chart_1" style="min-width:300px;min-height:300px;"></canvas>
+      </div>
+      <!-- Aruco camera image -->
+      <div style="flex-grow:1;">
+        <img src="camera.mjpg" style="width:640px;">
+      </div>          
+    </div>
+    
+    <!-- GNSS and innovations -->
+    <table style="width:100%;"><tr>
+      <td><div class="rcorners2">
+          <p class="meas2">GNSS satellites</p>
+          <p class="value2" id="mi_GpsNumObs">- - -</p>
+          </div></td>
+      <td><div class="rcorners2">
+          <p class="meas2">GNSS position mode</p>
+          <p class="value2" id="mi_GpsPosMode">- - -</p>
+          </div></td>
+      <td><div class="rcorners2">
+          <p class="meas2">GNSS velocity mode</p>
+          <p class="value2" id="mi_GpsVelMode">- - -</p>
+          </div></td>
+      <td><div class="rcorners2">
+          <p class="meas2">GNSS attitude mode</p>
+          <p class="value2" id="mi_GpsAttMode">- - -</p>
+          </div></td>
+      <td><div class="rcorners2">
+          <p class="meas2">Innovations</p>
+          <table><tr>
+              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPosX"></strong></div></td>
+              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPosY"></strong></div></td>
+              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPosZ"></strong></div></td>
+              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnVelX"></strong></div></td>
+              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnVelY"></strong></div></td>
+              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnVelZ"></strong></div></td>
+              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnHeading"></strong></div></td>
+              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPitch"></strong></div></td>
+              </tr></table></div>
+        </td></tr></table>
+    
+    <!-- Measurement table -->          
+    <table class="dataframe, dataframe2" style="width: 500px;">
+      <thead> <tr> <th>Measurement</th>  <th>Value</th> <th>Units</th> </tr></thead>
+        <tr> <td>GpsTime</td>          <td id="mi_GpsTime">---</td> <td></td> </tr>
+        <tr> <td>Image Gps time</td>   <td id="mi_ImageGpsTime">---</td> <td>s</td> </tr>
+        <tr> <td>Exposure time</td>    <td id="mf3_ExposureTime">---</td> <td>s</td> </tr>
+        <tr> <td>AmLocalN</td>         <td id="mf3_AmLocalN">---</td> <td>m</td> </tr>
+        <tr> <td>AmLocalE</td>         <td id="mf3_AmLocalE">---</td> <td>m</td> </tr>
+        <tr> <td>AmLocalD</td>         <td id="mf3_AmLocalD">---</td> <td>m</td> </tr>      
+        <tr> <td>Marker Id</td>        <td id="mi_AmId">---<td></td></td></tr>
+        <tr> <td>Am Xc</td>            <td id="mf3_AmXc_cm">---</td> <td>m</td> </tr>
+        <tr> <td>Am Yc</td>            <td id="mf3_AmYc_cm">---</td> <td>m</td> </tr>
+        <tr> <td>Am Zc</td>            <td id="mf3_AmZc_cm">---</td> <td>m</td> </tr>
+        <tr> <td>Amb Heading</td>      <td id="mf3_AmbHeading">---</td> <td>degrees</td> </tr>
+        <tr> <td>Amb Pitch</td>        <td id="mf3_AmbPitch">---</td> <td>degrees</td> </tr>
+        <tr> <td>Amb Roll</td>         <td id="mf3_AmbRoll">---</td> <td>degrees</td> </tr>
+        <tr> <td>Amc Heading</td>      <td id="mf3_AmcHeading">---</td> <td>degrees</td> </tr>
+        <tr> <td>Amc Pitch</td>        <td id="mf3_AmcPitch">---</td> <td>degrees</td> </tr>
+        <tr> <td>Amc Roll</td>         <td id="mf3_AmcRoll">---</td> <td>degrees</td> </tr>
+        <tr> <td>Am Heading</td>       <td id="mf3_AmHeading">---</td> <td>degrees</td> </tr>
+        <tr> <td>Am Pitch</td>         <td id="mf3_AmPitch">---</td> <td>degrees</td> </tr>
+        <tr> <td>Am Roll</td>          <td id="mf3_AmRoll">---</td> <td>degrees</td> </tr>
+        <tr> <td>Amc Rodrigues 0</td>   <td id="mf3_AmcRodrigues0">---</td> <td></td> </tr>
+        <tr> <td>Amc Rodrigues 1</td>   <td id="mf3_AmcRodrigues1">---</td> <td></td> </tr>
+        <tr> <td>Amc Rodrigues 2</td>   <td id="mf3_AmcRodrigues2">---</td> <td></td> </tr>
+    </table>
+
+    <!--Javascript to run this page -->    
+    <script language="javascript" type="text/javascript">
+      
+      let chart; // needs to be global so update handlers can access it
+      function initChart()
+      {         
+        const ctx = document.getElementById("chart_1").getContext("2d");                     
+        chart = new Chart(ctx, {
+          type: "scatter",
+          data: {
+            datasets: [
+              { order:1, pointRadius: 2,  pointBackgroundColor: "rgb(202,24,28)", data: [] }, // dataset[0] used for the navigation data
+              { order:2, pointRadius: 5,  pointBackgroundColor: "rgb(100,100,100)", data: [] }, // dataset[1] used for the aruco markers            
+              { order:0, pointRadius: 16, pointStyle: 'cross', borderColor: "rgb(0,0,0)", borderWidth: 2, data: [] }, // dataset[2] used for the current position
+              { order:3, pointRadius: 3,  pointBackgroundColor: "rgb(200,200,200)", data: [] }, // dataset[3] used for unmapped markers},
+            ] },
+            options: {
+              plugins: {legend: {display: false}}, animation: false, scales: { x: { min: -20.0, max: 20.0 }, y: { min: -10.0, max: 10.0 } } }
+        });        
+      }
+      
+      window.addEventListener("load", function () {
+        initChart();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const ip = urlParams.get('ip');
+
+        startSocket("nav-data-" + ip, function (data) {
+          data.SpeedMps = Math.sqrt(data.Vn ** 2 + data.Ve ** 2);
+          updateId(data);
+
+          // Chart update
+          chart.data.datasets[0].data.push({ x: data.AmLocalE, y: data.AmLocalN });
+          if (chart.data.datasets[0].data.length > 200) chart.data.datasets[0].data.shift();
+          chart.data.datasets[2].data[0] = { x: data.AmLocalE, y: data.AmLocalN };
+          chart.update();
+        });
+
+        startSocket("nav-status-" + ip, function (data) {
+          data.AccSpeedMps = Math.sqrt(data.VnAcc ** 2 + data.VeAcc ** 2);
+          updateId(data);
+
+          updateInnovationBar("InnPosX", data.InnPosXFilt);
+          updateInnovationBar("InnPosY", data.InnPosYFilt);
+          updateInnovationBar("InnPosZ", data.InnPosZFilt);
+          updateInnovationBar("InnVelX", data.InnVelXFilt);
+          updateInnovationBar("InnVelY", data.InnVelYFilt);
+          updateInnovationBar("InnVelZ", data.InnVelZFilt);
+          updateInnovationBar("InnHeading", data.InnHeadingFilt);
+          updateInnovationBar("InnPitch", data.InnPitchFilt);
+        });
+
+        startSocket("am-data", function (data) {
+          updateId(data);
+
+          if ('AmMap' in data) {
+            const markers = Object.values(data.AmMap).map(marker => ({
+              x: marker.AmX,
+              y: marker.AmY
+            }));
+            chart.data.datasets[1].data = markers;
+            chart.update();
+          }
+
+          if ('AmUnmappedMarkers' in data) {
+            const unmarked = Object.values(data.AmUnmappedMarkers).map(marker => ({
+              x: marker.AmX,
+              y: marker.AmY
+            }));
+            chart.data.datasets[3].data = unmarked;
+            chart.update();
+          }
+        });
+      });
+
+      
+      // Processes entries to the "send" box
+      // which can be used to send messages or to configure some
+      // parameters
+      function doit_onkeypress(event) {
+        const key = event.key || event.keyCode;
+
+        if (key === 'Enter' || key === 13) {
+          const urlParams = new URLSearchParams(window.location.search);
+          const ip = urlParams.get('ip');
+
+          const txt = document.getElementById("send_text").value;
+          args = txt.split(" ");
+          if( args[0] == "AmID" )
+            AmIdFilter = parseInt(args[1])
+          else
+            socket.emit('user-command?ip='+ip,txt);
+        }
+      }
+                  
+      // The innovation bars are simply two elements, the outer one
+      // has the border. The inner one colors the bar from the bottom.
+      // Update the height (in %) from the innovation, assuming
+      // the maximum innovation value is 3.0.
+      function updateInnovationBar( el, inn )
+      {
+        inn = inn * 100.0 / 3.0;
+        if( inn < 0.0 ) inn = -inn; // Filtered innovations should already be +ve
+        if( inn > 100.0 ) inn = 100.0;
+        document.getElementById(el).style="height:"+inn+"%";
+      }        
+    </script>
+  </body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Log Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        body {
+            margin: 0;
+            background: black;
+            color: white;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        #logDisplay {
+            width: 100vw;
+            height: 100vh;
+            overflow-y: auto;
+            white-space: nowrap;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="logDisplay"></div>
+
+    <script>
+        const socket = io();
+        const logBox = document.getElementById("logDisplay");
+        
+        socket.on("connect", () => {
+            console.log("WebSocket reconnected");
+            document.getElementById("logDisplay").innerHTML = ""; // Clear previous logs
+        });
+
+        socket.on("log", (data) => {
+            const logBox = document.getElementById("logDisplay");
+
+            // Add new log entry
+            logBox.innerHTML += `<div>${data}</div>`;
+
+            // Remove older logs if over 100 lines
+            const logEntries = logBox.children;
+            while (logEntries.length > 100) {
+                logBox.removeChild(logEntries[0]); // Remove the oldest entry
+            }
+
+            logBox.scrollTop = logBox.scrollHeight; // Auto-scroll to latest entry
+        });
+    </script>
+</body>
+</html>

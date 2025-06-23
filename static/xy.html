@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>OxTS XY Position</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="favicon.png">
+    <script type="text/javascript" src="chart.js/chart.min.js"></script>
+    <script src="js/socket.io.min.js"></script>
+    <script type="text/javascript" src="messages.js"></script>  
+    
+  </head>
+  <body>
+    <h1><a href="index.html" style=text-decoration:none>XY plot</a></h1>
+    <canvas id="chart_xy" style="min-width:300px;min-height:300px;"></canvas>
+    <table class="dataframe, dataframe2">
+      <thead>
+        <tr> <th>Measurement</th>  <th>Value</th> <th>Units</th> </tr>
+      </thead>
+      <tr> <td>GpsTime</td>         <td id="ms_GpsTime">---</td> <td></td> </tr>
+      <tr> <td>Latitude</td>        <td id="mf8_LatDeg">---</td> <td>deg</td> </tr>
+      <tr> <td>Longitude</td>       <td id="mf8_LonDeg">---</td> <td>deg</td> </tr>
+      <tr> <td>Altitude</td>        <td id="mf3_Alt">---</td> <td>m</td> </tr>
+      <tr> <td>Velocity North</td>  <td id="mf2_Vn">---</td> <td>m/s</td> </tr>
+      <tr> <td>Velocity East</td>   <td id="mf2_Ve">---</td> <td>m/s</td> </tr>
+      <tr> <td>Velocity Down</td>   <td id="mf2_Vd">---</td> <td>m/s</td> </tr>
+      <tr> <td>Heading</td>         <td id="mf2_Heading">---</td> <td>deg</td> </tr>
+      <tr> <td>Pitch</td>           <td id="mf2_Pitch">---</td> <td>deg</td> </tr>
+      <tr> <td>Roll</td>            <td id="mf2_Roll">---</td> <td>deg</td> </tr>
+    </table>
+
+    <script type="text/javascript">
+      let chart;
+      let baseLLA;
+
+      function initChart() {
+        const ctx = document.getElementById("chart_xy").getContext("2d");
+        chart = new Chart(ctx, {
+          type: "scatter",
+          data: {
+            datasets: [
+              { order: 1, pointRadius: 4, pointBackgroundColor: "rgb(202,24,28)", data: [] },
+              { order: 0, pointRadius: 16, pointStyle: "cross", borderColor: "rgb(0,0,0)", borderWidth: 2, data: [] }
+            ]
+          },
+          options: {
+            plugins: { legend: { display: false } },
+            animation: false
+          }
+        });
+      }
+
+      window.addEventListener("load", function () {
+        initChart();
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const ip = urlParams.get("ip");
+
+        startSocket("nav-data-" + ip, function (data) {
+          // Compute derived quantities
+          data.LatDeg = data.Lat * 57.295779513;
+          data.LonDeg = data.Lon * 57.295779513;
+
+          if (typeof baseLLA === "undefined") {
+            baseLLA = { Lat: data.Lat, Lon: data.Lon, Alt: data.Alt };
+          }
+
+          data.LocalY = (data.Lat - baseLLA.Lat) * 6370000;
+          data.LocalX = (data.Lon - baseLLA.Lon) * 6370000 * Math.cos(baseLLA.Lat);
+
+          updateId(data);
+
+          // Update chart
+          chart.data.datasets[0].data.push({ x: data.LocalX, y: data.LocalY });
+          if (chart.data.datasets[0].data.length > 200) chart.data.datasets[0].data.shift();
+          chart.data.datasets[1].data[0] = { x: data.LocalX, y: data.LocalY };
+          chart.update();
+        });
+      });
+    </script>
+  </body>
+</html>
