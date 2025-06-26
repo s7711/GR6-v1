@@ -1,123 +1,17 @@
-# The MIT License (MIT)
-
-# Copyright (C) 2021 s7711
-# 39369253+s7711@users.noreply.github.com
-
-# Permission is hereby granted, free of charge, to any person obtaining
-# a copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including
-# without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and to
-# permit persons to whom the Software is furnished to do so, subject to
-# the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-# Version 250623 - Lots of changes and probably some things are broken
-#    - Moved to picamera2
-#    - Moved to Flash-based web server
-#    - New timing based on monotonic, not perf_counter, and not checked
-# Version 240209 - Added shutdown to devices webpage; send-time;
-#   internet pass-through; AmMap sent on a time (not with images)
-# Version 220509 - ncomrx.py decodes local co-ordinates. Map file
-#   supports LLA or XYZ and aiding will be either geodetic or local.
-#   TODO: XYZ version does not send initialisation commands.
-# Version 220506 - HTML changes only. Using chart.js. Websocket moved to
-#   messages.js. All styles in styles.css. Pages work without internet.
-# Version 220401 - Variable empirical accuracy for pos_geodetic update
-#   Using subpixel corners for aruco.
-# Version 220302 - Fixed threads breaking websocket
-#   Removed static GAD and initialisation from gad.html
-#   Send AmBaseLLA from config
-#   Initialise from markers
-#   Added shutdown command
-# Version 220301 - Better exception messages
-# Version 220215 - Changed to one web socket. Added Db_xc to config.
-#   Added camera rotation (not in ideal way)
-# Version 220214 - Added configuration file
-# Version 220211 - Changed to 1280x960 resolution. Camera HPR added,
-#   pointing left
-# Version 220204 - Multiple markers from a mapfile
-# Version 220128 - GAD timing from camera time. Lever-arm for
-#   camera-marker vector update
-# Version 220127 - am.json websocket for camera measurements. Uses
-#   camera for GAD update (position, heading)
+# main.py
+# Licensed under the MIT License – see LICENSE file for details.
 
 """
-ncom-web-gad main entry point
+GR6-v1 entry point
 
-The ncom-web-gad application:
-* Decodes NCOM ethernet data from OxTS inertial navigation systems
-* Serves static web pages
-* Has a websocket called message.json that sends information to the
-  web pages. The websocket is organised as a dictonary where the key
-  gives the type of information. For example the "nav" key sends the
-  navigation information from the OxTS inertial navigation system.
-* Has a websocket called devices.json, which lists the IP addresses
-  of the INSs on the network
-* Opens the Raspberry Pi camera, looks for an aruco marker
-  then sends a generic aiding update. This version uses camera time.
+Usgae:
+    python3 main.py
 
-The configuration is read from three places:
-* In this file (main.py), CFG holds a default set of values
-* ~/.gad_configuration.json overwrites the default values (if present)
-* configuration.json (local folder) overwrites again (if present)
+Then from a web browser:
+    http://<ip address>:8000
 
-Note that this version is IP address specific and can be used with
-multiple INSs on the same network. To select which INS you want the
-data from you need to specify a query in the web socket address.
-For example:
-
-  ws://192.168.2.123:8000/nav.json?ip=192.168.2.62
-
-will connect to 192.168.2.123 and open the web socket that serves
-navigation data from INS on IP address 192.168.2.62
-
-The devices.json web socket doesn't need an IP address because it lists
-all of the devices/IP addresses that have been received
-
-HOWEVER the aruco marker update is not automatic and is sent to a fixed
-IP address specified in the configuration file.
-
-The basic hardware setup that I used is:
-
-"OxTS <--> Raspberry Pi" connected by ethernet using static IP in range 192.168.2.xxx
-"Raspberry Pi <--> network" connected by wlan using DHCP (192.168.1.xxx)
-
-This separates the OxTS navigation system from the main network.
-
-I used a 5MP version 1 camera. Use "camcal" code to calibrate your
-camera. Make sure the resolution used for calibration matches the
-resolution used here.
-
-Usage:
-
-python3 main.py
-
-Then, from a web browser:
-
-http://<ip of python PC>:8000/index.html
-http://<ip of python PC>:8000/nav.html?ip=<ip of INS>
-http://<ip of python PC>:8000/status.html?ip=<ip of INS>
-
-For example: http://192.168.1.10:8000/nav.html?ip=195.0.0.20
-
-You can add html pages to directory "static" to create your own
-templates. My HTML is functional but it needs someone with more
-skill to create beautiful pages :-)
-
-The python http.server that the web server is based on claims not to
-be secure so it is probably best not to expose this application to
-the web.
+This program is currently under development. It has been inherited from
+a previous project and several parts probably do not work as expected.
 """
 
 # Standard python imports

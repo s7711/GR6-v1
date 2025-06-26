@@ -1,17 +1,19 @@
 # web_server.py
-#
-# Implements a background web server using Flask and Flask-SocketIO
-# Has the following features:
-# - Serves files from subdirectory "static"
-# - Defaults "/" to "static/index.html"
-# - Provides an MJPEG stream at "/camera.mjpg" for the latest camera frame
-# - Provides a WebSocket endpoint for telemetry updates
-# - Captures logging messages and sends them through telemetry
-#
-# Usage:
-# ws = WebServer(port=8000)
-# ws.send(root, data) - Sends {root:data} as JSON
-# ws.send_camera(image_array) - Sends a numpy array image as a JPEG frame
+# Licensed under the MIT License – see LICENSE file for details.
+"""
+Implements a background web server using Flask and Flask-SocketIO
+Has the following features:
+- Serves files from subdirectory "static"
+- Defaults "/" to "static/index.html"
+- Provides an MJPEG stream at "/camera.mjpg" for the latest camera frame
+- Provides a WebSocket endpoint for telemetry updates
+- Captures logging messages and sends them through telemetry
+
+Usage:
+  ws = WebServer(port=8000)
+  ws.send(root, data) - Sends {root:data} as JSON
+  ws.send_camera(image_array) - Sends a numpy array image as a JPEG frame
+"""
 
 import threading
 import flask
@@ -93,6 +95,7 @@ class WebServer:
             logging.warning(f"Dropped message: {event=}, {data=}")
 
     def recv(self):
+        """Wait for a message from the WebSocket and return it."""
         return self.recv_queue.get()  # Block until a message is received
 
     def queue_log(self, message):
