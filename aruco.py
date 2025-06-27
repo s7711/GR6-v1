@@ -1,31 +1,5 @@
-# The MIT License (MIT)
-
-# Copyright (C) 2021 s7711
-# 39369253+s7711@users.noreply.github.com
-
-# Permission is hereby granted, free of charge, to any person obtaining
-# a copy of this software and associated documentation files (the
-# "Software"), to deal in the Software without restriction, including
-# without limitation the rights to use, copy, modify, merge, publish,
-# distribute, sublicense, and/or sell copies of the Software, and to
-# permit persons to whom the Software is furnished to do so, subject to
-# the following conditions:
-#
-# The above copyright notice and this permission notice shall be included
-# in all copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
-# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
-# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
-# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-# This software includes modules with different licenses. See the
-# license for each module. For example opencv is licensed under Apache 2
-# and the aruco marker functions have a non-commercial license
-
+# aruco.py
+# Licensed under the MIT License – see LICENSE file for details.
 
 """
 aruco.py
@@ -108,6 +82,7 @@ import numpy as np
 import csv
 import os
 import traceback
+import logging
 
 import ncomrx # for useful functions
 
@@ -132,18 +107,13 @@ class Aruco(object):
             r = tuple(fs.getNode("resolution").mat())
             self.calibrationResolution = (r[1][0],r[0][0]) # OpenCV does resolutions backwards!
         except:
-            print("Camera calibration resolution unknown")
+            logging.exception("Camera calibration resolution unknown")
             self.calibrationResolution = None
         self.mtx = fs.getNode("camera_matrix").mat()
         self.dist = fs.getNode("distortion_coefficients").mat()
         self.dictionary = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_6X6_250)
-        try:
-            self.parameters = cv2.aruco.DetectorParameters()
-        except AttributeError:
-            self.parameters = cv2.aruco.DetectorParameters_create()
+        self.parameters = cv2.aruco.DetectorParameters()
         self.parameters.cornerRefinementMethod = cv2.aruco.CORNER_REFINE_SUBPIX
-
-        # Use the new ArucoDetector class
         self.detector = cv2.aruco.ArucoDetector(self.dictionary, self.parameters)
         
         # Method of stopping the processing and terminating the thread
@@ -171,7 +141,7 @@ class Aruco(object):
                         row['AmZ'] = markerNED['LocalZ']
                     self.markers.update({row['AmId']:row})
         except Exception as e:
-            print(traceback.format_exc())
+            logging.exception(traceback.format_exc())
 
         # Rotation matricies so the camera rotation can be expressed as HPR
         # R_Mm - vector in HmPmRm from a vector in marker co-ordinates
@@ -329,7 +299,7 @@ class Aruco(object):
                 self.cam_frames.append(img)
                 self.cam_condition.notify_all()
         except Exception as e:
-            print(traceback.format_exc())
+            logging.exception(traceback.format_exc())
         
         return marker_measurements # List of dictionaries containing the measurements
 

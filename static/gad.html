@@ -68,14 +68,14 @@
       <td><div class="rcorners2">
           <p class="meas2">Innovations</p>
           <table><tr>
-              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPosX"></strong></div></td>
-              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPosY"></strong></div></td>
-              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPosZ"></strong></div></td>
-              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnVelX"></strong></div></td>
-              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnVelY"></strong></div></td>
-              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnVelZ"></strong></div></td>
-              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnHeading"></strong></div></td>
-              <td><div class="loadbar"><strong class="bar" style='height:50%;' id="InnPitch"></strong></div></td>
+              <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnPosX"></span></div></td>
+              <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnPosY"></span></div></td>
+              <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnPosZ"></span></div></td>
+              <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnVelX"></span></div></td>
+              <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnVelY"></span></div></td>
+              <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnVelZ"></span></div></td>
+              <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnHeading"></span></div></td>
+              <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnPitch"></span></div></td>
               </tr></table></div>
         </td></tr></table>
     
@@ -104,6 +104,12 @@
         <tr> <td>Amc Rodrigues 0</td>   <td id="mf3_AmcRodrigues0">---</td> <td></td> </tr>
         <tr> <td>Amc Rodrigues 1</td>   <td id="mf3_AmcRodrigues1">---</td> <td></td> </tr>
         <tr> <td>Amc Rodrigues 2</td>   <td id="mf3_AmcRodrigues2">---</td> <td></td> </tr>
+        <tr> <td>GAD Stream ID</td>   <td id="mi_GadStreamId">---</td> <td></td> </tr>
+        <tr> <td>Number of consecutive rejected GAD updates</td>   <td id="mi_GadReject">---</td> <td></td> </tr>
+        <tr> <td>GAD Innovation 1</td>   <td id="mf2_GadInn1">---</td> <td></td> </tr>
+        <tr> <td>GAD Innovation 2</td>   <td id="mf2_GadInn2">---</td> <td></td> </tr>
+        <tr> <td>GAD Innovation 3</td>   <td id="mf2_GadInn3">---</td> <td></td> </tr>
+        <tr> <td>Time of GAD update</td>   <td id="mf3_GadTime">---</td> <td></td> </tr>
     </table>
 
     <!--Javascript to run this page -->    
@@ -142,6 +148,9 @@
           if (chart.data.datasets[0].data.length > 200) chart.data.datasets[0].data.shift();
           chart.data.datasets[2].data[0] = { x: data.AmLocalE, y: data.AmLocalN };
           chart.update();
+        }, () => {
+          const img = document.querySelector('img[src^="camera.mjpg"]');
+          if (img) img.src = `camera.mjpg?t=${Date.now()}`;
         });
 
         startSocket("nav-status-" + ip, function (data) {

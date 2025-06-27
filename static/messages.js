@@ -17,17 +17,24 @@ let reconnectTimer = null;
 // Global AmIdFilter is used to filter aruco marker ids
 let AmIdFilter = -1; // Negative for no filter
 
-function messages_startSocket(eventName, onMessage) {
+function messages_startSocket(eventName, onMessage, onConnect) {
     if (!socket) {
         socket = io();
-        socket.on('connect', () => disconnected = false);
+
+        socket.on('connect', () => {
+            disconnected = false;
+            if (typeof onConnect === 'function') {
+                onConnect();
+            }
+        });
+
         socket.on('disconnect', () => disconnected = true);
         socket.on('connect_error', () => disconnected = true);
 
         if (reconnectTimer === null) {
             reconnectTimer = setInterval(() => {
                 if (disconnected) {
-                    socket.connect(); // Attempt to reconnect existing socket
+                    socket.connect();
                 }
             }, 5000);
         }

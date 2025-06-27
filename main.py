@@ -17,7 +17,6 @@ a previous project and several parts probably do not work as expected.
 # Standard python imports
 import time
 import datetime
-import json
 import threading
 import socket
 import sys
@@ -39,66 +38,11 @@ import web_server
 import bgCamera2
 import aruco
 import ncomrx
+import config
+import gad_fake
 
 logging.info("Program starting") # Makes sure that the default logging handler is set up
-
-# Configuration will be stored in a global dictionary called CFG
-# Configurations files will update the default configuration
-# Default configuration
-CFG = {
-    # InsIp
-    # This is the IP address where aiding updates will be sent
-    "InsIp":"192.168.2.62",
-    
-    # HPR_Cb, tuple, degrees
-    # Heading, Pitch, Roll for body frame from Camera frame
-    # For example, if the camera points left then the xNAV body frame
-    # has a 90 degree heading rotation from the Camera frame
-    # (The camera axes having already been changed to a nominally
-    # x-forward, y-right, z-down frame)
-    "HPR_Cb":(90,0,0),
-    
-    # Db_xc, tuple, metres
-    # Displacement of xNAV to camera in xNAV body frame
-    # For example, if the camera is 10cm forward of the xNAV then
-    # (0.1,0.0)
-    "Db_xc":(0.0,0.0,0.0),
-    
-    # BaseLLA, tuble, (deg, deg, m)
-    # The latitude, longitude and altitude for X0Y0Z0 needs to be
-    # given so the website map can be made
-    "AmBaseLLA":(52.0,-1.0,100.0), # Defaults not useful, have in config file
-}
-
-# Read configuration files, if one exists
-try:
-    cfg1 = {}
-    homeDir = os.path.expanduser('~')
-    with open(os.path.join(homeDir,'.gad_configuration.json')) as f:
-        cfg1 = json.load(f)
-    for key in cfg1:
-        CFG[key] = cfg1[key]
-except Exception as e:
-    logging.exception(datetime.datetime.now())
-try:
-    cfg2 = {}
-    with open('configuration.json') as f:
-        cfg2 = json.load(f)
-    for key in cfg2:
-        CFG[key] = cfg2[key]
-except Exception as e:
-    pass # Don't worry if this file is not found
-
-# Write out the configuration that is being used - to the static folder
-# so the website can access it
-try:
-    jStr = json.dumps(CFG, indent=2)
-    jFile = open(os.path.join("static","CFG.json"),"w")
-    jFile.write(jStr)
-    jFile.close()
-except Exception as e:
-    logging.exception(datetime.datetime.now())
-
+CFG = config.ReadConfig() # Read the configuration file
 
 
 # Definitions for where the camera is and how it is orientated compare
@@ -166,125 +110,7 @@ def serve_json():
             ws.send("nav-status-"+addr, nrx['decoder'].status)
             ws.send("nav-connection-"+addr, nrx['decoder'].connection)
 
-# TODO: above: sort out how the IP address is going to be filtered
-
-# Serve_gad is used for "testing" and is not part of the normal aruco
-# marker generic aiding update. It can be used to send a regular fixed
-# position, velocity of attitude generic aiding update. This can be
-# useful while debugging or during initial testing if the camera or
-# markers are not working. The velocity update can be useful (as a
-# zero velocity update) to keep the INS roughly stationary while
-# markers are not visible.
-#
-# The loop runs on a timer (see time.sleep(0.5) below). A queue is used
-# to send new updates to the thread running serve_gad().
-
-gad_queue = queue.Queue()
-
-def serve_gad():
-    """
-    Sends oxts gad (generic aiding) messages
-    Runs in a new thread
-    Receives commands from queue
-    """
-    gh = oxts_sdk.GadHandler()
-    gh.set_encoder_to_bin()    
-
-    # gadPkts is a dictionary of {'type_ip':type.ip address, 'pkt':gad_packet}
-    # These are the packets that should be sent out on a regular basis
-    # The type_ip field is used so the entry can be found, replaced and remove easily
-    # and is formatted as "gp:192.168.2.62", where "gp" is:
-    #   gp: gadPosition
-    #   gv: gadVelocity
-    #   etc.
-    # Use split(":") to separate type and ip address
-    gadPkts = {}
-    
-    while True:
-        time.sleep(0.5) # Sets the rate for updates
-
-        # Process the gad queue
-        # If there is anything in the queue then add it to gadPkts{}
-        # (Or remove existing gadPkts entries using "stop")
-        more = True
-        while more:
-            try:
-                ip, command = gad_queue.get_nowait()
-            except:
-                # Assume that the queue is now empty
-                more = False
-            
-            if more == True:
-                # Split up the command (uses spaces as a delimiter)
-                args = command.split()
-                
-                # Interpret the command
-                # In a try block to catch user errors, and anything else
-                try:
-                    ### vel_neu
-                    if args[0] == '#vel_neu':
-                        if len(args) == 5 or len(args) == 4:
-                            # #vel_neu vn ve vu [acc]
-                            gv = oxts_sdk.GadVelocity(132)
-                            gv.vel_neu = [ float(v) for v in args[1:4] ]
-                            if len(args) == 5:
-                                gv.vel_neu_var = [float(args[4]),float(args[4]),float(args[4]),0.0,0.0,0.0] # Note: using 3 terms does not appear to work
-                            else:
-                                # Default to a covariance of 0.1 ~ 31.6cm/s
-                                gv.vel_neu_var = [0.1,0.1,0.1,0.0,0.0,0.0] # Note: using 3 terms does not appear to work
-                            gv.set_time_void()
-                            gv.aiding_lever_arm_fixed = [0.0,0.0,0.0]
-                            gv.aiding_lever_arm_var = [0.01,0.01,0.01]
-                            gadPkts["gv:"+ip] = gv
-                        elif args[1] == 'stop':
-                            del gadPkts["gv:"+ip]
-                            
-                    ### pos_geo    
-                    elif args[0] == '#pos_geo':
-                        if len(args) == 4:
-                            # #pos_geo lat lon alt
-                            gp = oxts_sdk.GadPosition(129)
-                            gp.pos_geodetic = [ float(v) for v in args[1:4] ]                    
-                            gp.pos_geodetic_var = [0.01,0.01,10.0,0.0,0.0,0.0] # Note: using 3 terms does not appear to work
-                            gp.set_time_void()
-                            gp.aiding_lever_arm_fixed = [0.0,0.0,0.0]
-                            gp.aiding_lever_arm_var = [0.001,0.001,0.001]
-                            gadPkts["gp:"+ip] = gp
-                        elif args[1] == 'stop':
-                            del gadPkts["gp:"+ip]
-                    
-                    ### pos_att
-                    elif args[0] == '#att':
-                        if len(args) == 4:
-                            ga = oxts_sdk.GadAttitude(131)
-                            ga.att = [ float(v) for v in args[1:4] ]                    
-                            ga.att_var = [10.0,100.0,100.0]
-                            ga.set_time_void()
-                            ga.set_aiding_alignment_optimising()
-                            ga.aiding_alignment_var = [5.0,5.0,5.0]
-                            gadPkts["ga:"+ip] = ga
-                        elif args[1] == 'stop':
-                            del gadPkts["ga:"+ip]
-                    
-                except Exception as e:
-                    # Note this will show an error if "stop" is sent
-                    # when there is no generic aiding message matching
-                    # the stop request. The exception will be a key
-                    # error
-                    logging.warning(f"Command error: {e}")            
-        
-        # Each gad packet that needs to be sent to each ip address
-        # in gadPkts with keys 'type_ip' and 'pkt'
-        # Set the IP address and then send the packet
-        for k,pkt in gadPkts.items():
-            try:
-                type_ip = k.split(':')
-                gh.set_output_mode_to_udp(type_ip[1]) # Should be IP address
-                gh.send_packet(pkt)
-            except Exception as e:
-                logging.warning(e)
-                del gadPkts[k]                        # Don't bother with this again
-            
+# TODO: above: sort out how the IP address is going to be filtered    
 
 
 updateAmGo = True # Can be used to end the aruco marker thread
@@ -511,7 +337,7 @@ def upload_xnav_config():
 # Start the program
 logging.info("Use Ctrl-C to quit")
 threading.Thread(target=serve_json).start()
-threading.Thread(target=serve_gad).start()
+gf = gad_fake.GadFake(CFG) # Starts the GAD fake thread
 threading.Thread(target=updateAm).start() # Starts decoding and sending images
 
 threading.Thread(target=upload_xnav_config).start()
@@ -543,7 +369,8 @@ try:
             logging.info(message)
             sock.sendto(bytes(message+"\n", "utf-8"), (CFG['InsIp'],3001))
         elif message.startswith('#'): # then assume it is a GAD message
-            gad_queue.put((ip,message)) # put in the GAD queue
+            #gad_queue.put((ip,message)) # put in the GAD queue
+            gf.userCommand(ip,message) # Use the GAD fake thread
         else:   
             try:                      # because might not be valid IP
                 sock.sendto(bytes(message+"\n", "utf-8"), (ip,3001))
