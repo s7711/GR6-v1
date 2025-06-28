@@ -86,7 +86,7 @@ import logging
 
 import ncomrx # for useful functions
 
-class Aruco(object):
+class Aruco:
     """
     Looks for Aruco markers, computes the vector and angles ready to
     send to an OxTS INS
@@ -223,7 +223,6 @@ class Aruco(object):
         If nav is a dictionary containing LLA+HPR then unmapped markers
         will be computed.
         """
-
         # List of dictionaries with marker measurements
         marker_measurements = []
         

@@ -118,7 +118,7 @@ GPS_STARTTIME = datetime.datetime(1980,1,6,tzinfo=datetime.timezone.utc)
 
 ########################################################################
 # NCOM class
-class NcomRx(object):
+class NcomRx:
     def __init__(self):
         # todo: protect nav, status with a lock when multi-threaded
         self.nav = {}  # Dictionary for navigation measurements

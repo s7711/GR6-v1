@@ -18,7 +18,7 @@ import oxts_sdk
 import threading
 
 
-class GadFake(object):
+class GadFake:
     """
     GadFake class to send fake GAD updates to the OXTS navigation system.
     This is used to keep the xNAV650 stable if GNSS is not available, etc.
