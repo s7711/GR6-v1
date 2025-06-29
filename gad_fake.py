@@ -16,6 +16,7 @@ import time
 import logging
 import oxts_sdk
 import threading
+from config import CFG
 
 
 class GadFake:
@@ -30,28 +31,14 @@ class GadFake:
         self._running = True
         self._thread.start()
 
-    def userCommand(self, ip, message):
+    def user_command(self, message):
         """
         User command to update the GAD queue.
         This is called from the webpage to send commands to the GAD thread.
         """
-        # message is a string, ip is a string of the address for the GAD update
-        # The message should be in the format "#command arg1 arg2 ..."
-        # e.g. "#vel_ned 1.0 2.0 3.0" or "#pos_geo 51.5074 -0.1278 10.0"
-        # or "#att 0.1 0.2 0.3"
         if message.startswith('#'):
-            self.gad_queue.put((ip, message))
+            self.gad_queue.put(message)
 
-    # Serve_gad is used for "testing" and is not part of the normal aruco
-    # marker generic aiding update. It can be used to send a regular fixed
-    # position, velocity of attitude generic aiding update. This can be
-    # useful while debugging or during initial testing if the camera or
-    # markers are not working. The velocity update can be useful (as a
-    # zero velocity update) to keep the INS roughly stationary while
-    # markers are not visible.
-    #
-    # The loop runs on a timer (see time.sleep(0.5) below). A queue is used
-    # to send new updates to the thread running serve_gad().
     def serve_gad(self):
         """
         Sends oxts gad (generic aiding) messages
@@ -60,15 +47,6 @@ class GadFake:
         """
         gh = oxts_sdk.GadHandler()
         gh.set_encoder_to_bin()    
-
-        # gadPkts is a dictionary of {'type_ip':type.ip address, 'pkt':gad_packet}
-        # These are the packets that should be sent out on a regular basis
-        # The type_ip field is used so the entry can be found, replaced and remove easily
-        # and is formatted as "gp:192.168.2.62", where "gp" is:
-        #   gp: gadPosition
-        #   gv: gadVelocity
-        #   etc.
-        # Use split(":") to separate type and ip address
         gadPkts = {}
         
         while self._running:
@@ -80,7 +58,7 @@ class GadFake:
             more = True
             while more:
                 try:
-                    ip, command = self.gad_queue.get_nowait()
+                    command = self.gad_queue.get_nowait()
                 except:
                     # Assume that the queue is now empty
                     more = False
@@ -89,8 +67,6 @@ class GadFake:
                     # Split up the command (uses spaces as a delimiter)
                     args = command.split()
                     
-                    print("Update")
-
                     # Interpret the command
                     # In a try block to catch user errors, and anything else
                     try:
@@ -108,9 +84,9 @@ class GadFake:
                                 gv.set_time_void()
                                 gv.aiding_lever_arm_fixed = [0.0,0.0,0.0]
                                 gv.aiding_lever_arm_var = [0.01,0.01,0.01]
-                                gadPkts["gv:"+ip] = gv
+                                gadPkts["gv"] = gv
                             elif args[1] == 'stop':
-                                del gadPkts["gv:"+ip]
+                                del gadPkts["gv"]
                                 
                         ### pos_geo    
                         elif args[0] == '#pos_geo':
@@ -122,9 +98,9 @@ class GadFake:
                                 gp.set_time_void()
                                 gp.aiding_lever_arm_fixed = [0.0,0.0,0.0]
                                 gp.aiding_lever_arm_var = [0.001,0.001,0.001]
-                                gadPkts["gp:"+ip] = gp
+                                gadPkts["gp"] = gp
                             elif args[1] == 'stop':
-                                del gadPkts["gp:"+ip]
+                                del gadPkts["gp"]
                         
                         ### pos_att
                         elif args[0] == '#att':
@@ -135,24 +111,20 @@ class GadFake:
                                 ga.set_time_void()
                                 ga.set_aiding_alignment_optimising()
                                 ga.aiding_alignment_var = [5.0,5.0,5.0]
-                                gadPkts["ga:"+ip] = ga
+                                gadPkts["ga"] = ga
                             elif args[1] == 'stop':
-                                del gadPkts["ga:"+ip]
+                                del gadPkts["ga"]
                         
                     except Exception as e:
                         # Note this will show an error if "stop" is sent
                         # when there is no generic aiding message matching
-                        # the stop request. The exception will be a key
-                        # error
+                        # the stop request.
                         logging.warning(f"Command error: {e}")            
             
-            # Each gad packet that needs to be sent to each ip address
-            # in gadPkts with keys 'type_ip' and 'pkt'
-            # Set the IP address and then send the packet
+            # Each gad packet that needs to be sent
             for k,pkt in gadPkts.items():
                 try:
-                    type_ip = k.split(':')
-                    gh.set_output_mode_to_udp(type_ip[1]) # Should be IP address
+                    gh.set_output_mode_to_udp(CFG['InsIp'])
                     gh.send_packet(pkt)
                 except Exception as e:
                     logging.warning(e)

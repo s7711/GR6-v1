@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Status</title>
+  <title>Connection</title>
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="favicon.png">
   <script src="js/socket.io.min.js"></script>
@@ -30,16 +30,52 @@
         <tr> <td>Time offset</td>        <td id="mf4_timeOffset">---</td>   <td>s</td> </tr>
         <tr> <td>Repeated UDP</td>       <td id="mi_repeatedUdp">---</td>   <td></td> </tr>
         <tr> <td>Unprocessed bytes</td>  <td id="mi_unprocessedBytes">---</td>   <td></td> </tr>
-    </table>
-    <button class="gadButton" onclick="socket.emit('user-command','#send-time');">Send time</button>
-    <button class="gadButton" onclick="socket.emit('user-command','!reset');">Reset xNav</button>
+        <tr> <td>Calculation errors</td>  <td id="mi_moreCalcErrors">---</td>   <td></td> </tr>
+      </table>
+
+      <button class="gadButton" onclick="socket.emit('user-command','!reset');">Reset xNav</button>
+
+      <h2><a href="index.html" style="text-decoration:none">NCOM status channel errors</a></h1>
+      <table class="dataframe dataframe2" id="status_errors_table">
+        <thead>
+          <tr style="text-align:right">
+            <th>Status channel</th>
+            <th>Errors</th>
+          </tr>
+        </thead>
+        <tbody id="status_errors_body">
+          <!-- Dynamic rows will go here -->
+        </tbody>
+      </table>
 
   <script>
     window.addEventListener("load", function() {
       const urlParams = new URLSearchParams(window.location.search);
       const ip = urlParams.get('ip');
-      startSocket('nav-connection-'+ip, updateId);
+      startSocket('nav-connection-'+ip, onConnectionData);
     });
+    
+    function onConnectionData(data) {
+      updateId(data)
+
+      const tbody = document.getElementById("status_errors_body");
+      tbody.innerHTML = ""; // Clear previous rows
+
+      for (const [statusChannel, error] of Object.entries(data.decodeStatusErrors)) {
+        const row = document.createElement("tr");
+
+        const keyCell = document.createElement("td");
+        keyCell.textContent = statusChannel;
+        row.appendChild(keyCell);
+
+        const valueCell = document.createElement("td");
+        valueCell.textContent = JSON.stringify(error);
+        row.appendChild(valueCell);
+
+        tbody.appendChild(row);
+      }
+    }
+
 
     function doit_onkeypress(event) {
       const key = event.key || event.keyCode;

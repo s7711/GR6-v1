@@ -46,7 +46,7 @@
         <img src="camera.mjpg" style="width:640px;">
       </div>          
     </div>
-    
+
     <!-- GNSS and innovations -->
     <table style="width:100%;"><tr>
       <td><div class="rcorners2">
@@ -129,7 +129,9 @@
               { order:3, pointRadius: 3,  pointBackgroundColor: "rgb(200,200,200)", data: [] }, // dataset[3] used for unmapped markers},
             ] },
             options: {
-              plugins: {legend: {display: false}}, animation: false, scales: { x: { min: -20.0, max: 20.0 }, y: { min: -10.0, max: 10.0 } } }
+              plugins: {legend: {display: false}}, animation: false, scales: { x: { min: -20.0, max: 20.0 }, y: { min: -10.0, max: 10.0 } },
+              responsive: false,
+              maintainAspectRatio: false }
         });        
       }
       

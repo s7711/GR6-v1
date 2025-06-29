@@ -10,10 +10,15 @@ Functions and classes that deal with the xnav
 
 import threading
 import ncomrx_thread
+import ncomrx
 import time
 import subprocess
 import logging
 import sys
+import datetime
+import socket
+import math
+from config import CFG
 
 class XNav:
     def __init__(self, ip_address):
@@ -47,6 +52,21 @@ class XNav:
                     self.ws.send("nav-data-"+addr, nrx['decoder'].nav) # Send to web server
                     self.ws.send("nav-status-"+addr, nrx['decoder'].status)
                     self.ws.send("nav-connection-"+addr, nrx['decoder'].connection)
+
+    def user_command(self, message):
+        """
+        Deals with messages from the user/website for the OXTS xnav
+        """
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # Socket for sending UDP
+        if message == '!send-time':
+            t1 = (datetime.datetime.now(datetime.timezone.utc) - ncomrx.GPS_STARTTIME).total_seconds()
+            gpsWeek = math.floor(t1 / 604800)
+            gpsSeconds = t1 % 604800
+            time_msg = f"!set time target {gpsWeek} {gpsSeconds:.0f}"
+            logging.info(time_msg)
+            sock.sendto(bytes(time_msg+"\n", "utf-8"), (CFG['InsIp'],3001))
+        else:
+            sock.sendto(bytes(message+"\n", "utf-8"), (CFG['InsIp'],3001))
 
     def upload_xnav_config(self):
         """ Upload the configuration from the xNAV and store it in

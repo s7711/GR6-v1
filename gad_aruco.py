@@ -13,6 +13,7 @@ import math
 import logging
 import datetime
 import socket
+from config import CFG
 
 # Definitions for where the camera is and how it is orientated compared
 # to the xNAV.
@@ -225,3 +226,16 @@ class GadAruco:
                 timeToSendMap = t + self.mapUpdatePeriod
 
 
+# Additional calculations for ncomrx
+# Called (from ncomrx.py) each time an NCOM packet is received
+# Add in AmLocal
+def calcAmLocal( nrx ):
+    global CFG
+    AmLocal = ncomrx.LLA2NED(nrx.nav['Lat'] * ncomrx.RAD2DEG,
+        nrx.nav['Lon'] * ncomrx.RAD2DEG, nrx.nav['Alt'],
+        CFG['AmBaseLLA'][0], CFG['AmBaseLLA'][1], CFG['AmBaseLLA'][2])
+
+    nrx.nav['AmLocalN'] = AmLocal['LocalN']
+    nrx.nav['AmLocalE'] = AmLocal['LocalE']
+    nrx.nav['AmLocalD'] = AmLocal['LocalD']
+    nrx.nav['AmLocalZ'] = AmLocal['LocalZ']   
