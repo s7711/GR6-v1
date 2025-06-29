@@ -112,11 +112,13 @@ table.dataframe2 tr:hover            { background-color: #FFD0D0;}
   padding: 5px;
   font-size: 20px;
   margin: 10px;
+  text-decoration: none;
 }
 .gadButton:hover
 {
   color: #ca181c;
   background-color: white;
+  text-decoration: none;
 }
 .gadButton:active
 {

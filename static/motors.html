@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Motors</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.png">
+  <script src="js/socket.io.min.js"></script>
+  <script src="messages.js"></script>
+  <script src="js/moment.min.js"></script>
+  <script src="js/chart.umd.min.js"></script>
+  <script src="js/chartjs-adapter-moment.min.js"></script>
+</head>
+  <body>
+    <!-- Title: Generic Aiding -->
+    <table style="width:100%;">
+      <tr style="vertical-align: baseline;">
+        <td><h1 style="border-bottom: none; margin: 0;"><a href="index.html" style=text-decoration:none>Motors</a></h1></td>
+        <td>
+        <p>Send: <input type="text" id="send_text" onkeypress="doit_onkeypress(event);"/></p>
+        </td>
+      </tr>
+    </table>
+    <table style="width:100%;">
+      <tr>
+        <td style="width: 50%;">
+            <div class="rcorners1">
+                <p class="meas1">Left motor (counts)</p>
+                <p class="value1" id="mi_LM_position">- - -</p>
+            </div>
+            <div class="rcorners2">
+                <div class="chart-container" style="height: 400px">
+                    <canvas id="chart_lm"></canvas>
+                </div>
+            </div>
+        </td>
+        <td style="width: 50%;">
+            <div class="rcorners1">
+                <p class="meas1">Right motor (counts)</p>
+                <p class="value1" id="mi_RM_position">- - -</p>
+            </div>
+            <div class="rcorners2">
+                <div class="chart-container" style="height: 400px">
+                    <canvas id="chart_rm"></canvas>
+                </div>
+            <div></div>
+        </td>
+      </tr>
+    </table>
+  <script defer>
+    function onMotorData(data) {
+        updateId(data)
+        updateCharts(data)
+    }
+
+    window.addEventListener("load", function() {
+      initCharts();
+      startSocket('motor', onMotorData)
+    });
+
+const MAX_POINTS = 120;
+
+// Helper to create a time series scatter chart
+function createScatterChart(ctx, labelX, labelY, yMin, yMax, yLabel) {
+    return new Chart(ctx, {
+        type: 'scatter',
+        data: {
+            datasets: [
+                { label: labelX, data: [], borderColor: 'red', backgroundColor: 'rgba(255,0,0,0.5)', showLine: true, radius: 0, borderWidth: 2 },
+                { label: labelY, data: [], borderColor: 'green', backgroundColor: 'rgba(0,255,0,0.5)', showLine: true, radius: 0, borderWidth: 2 },
+            ]
+        },
+        options: {
+            animation: false,
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'time',
+                    time: { unit: 'second', tooltipFormat: 'HH:mm:ss' },
+                    title: { display: true, text: 'Time' }
+                },
+                y: {
+                    min: yMin,
+                    max: yMax,
+                    title: { display: true, text: yLabel }
+                }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+}
+
+// Call this once on page load
+function initCharts() {
+    const ctxLM = document.getElementById('chart_lm').getContext('2d');
+    const ctxRM = document.getElementById('chart_rm').getContext('2d');
+    chartLM = createScatterChart(ctxLM, 'LM error', 'LM PWM', -100, 100, 'Left motor');
+    chartRM = createScatterChart(ctxRM, 'RM error', 'RM PWM', -100, 100, 'Right motor');
+}
+
+// Call this for each new nav-data point
+function updateCharts(data) {
+    if (!chartLM || !chartRM) return;
+    const t = new Date();
+
+    // Accelerations
+    chartLM.data.datasets[0].data.push({ x: t, y: data.LM_error });
+    chartLM.data.datasets[1].data.push({ x: t, y: data.LM_pwm });
+    // Angular rates
+    chartRM.data.datasets[0].data.push({ x: t, y: data.RM_error });
+    chartRM.data.datasets[1].data.push({ x: t, y: data.RM_pwm });
+
+    // Keep only the last MAX_POINTS
+    for (let ds of chartLM.data.datasets) {
+        if (ds.data.length > MAX_POINTS) ds.data.shift();
+    }
+    for (let ds of chartRM.data.datasets) {
+        if (ds.data.length > MAX_POINTS) ds.data.shift();
+    }
+
+    chartLM.update('none');
+    chartRM.update('none');
+    }
+
+    // Processes entries to the "send" box
+    // which can be used to send messages or to configure some
+    // parameters
+    function doit_onkeypress(event) {
+        const key = event.key || event.keyCode;
+
+        if (key === 'Enter' || key === 13) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const ip = urlParams.get('ip');
+
+            const txt = document.getElementById("send_text").value;
+            args = txt.split(" ");
+            if( args[0] == "AmID" )
+            AmIdFilter = parseInt(args[1])
+            else
+            socket.emit('user-command?ip='+ip,txt);
+        }
+    }
+
+  </script>
+</body>
+</html>

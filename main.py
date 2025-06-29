@@ -27,16 +27,15 @@ from config import CFG
 import gad_fake
 import gad_aruco
 import xnav
+import motors
 
 logging.info("Program starting") # Makes sure that the default logging handler is set up
          
 # Start up the services
-
 cam = bgCamera2.BgCamera()                          # Opens the camera in the background
 ws = web_server.WebServer()                         # Starts a web server in the background
 
 xn = xnav.XNav(CFG['InsIp'])                        # xNAV receiver and decoder
-#nrxs = xn.nrxs                                      # Get the NcomRxThread from the xnav
 xn.nrxs.moreCalcs.append(gad_aruco.calcAmLocal)     # Add in calculation for AmLocal co-ordinates
 xn.ws = ws                                          # Set the web server for the xNAV to send data to
 
@@ -47,6 +46,9 @@ ga.cam = cam
 ws.set_camera(ga.ar.img)                            # web server /camera.mjpg will use this image
 
 gf = gad_fake.GadFake(CFG)                          # Starts the GAD fake thread
+
+mc = motors.MotorController()
+mc.ws = ws
 
 #####################################################################
 # Start the program
@@ -73,6 +75,8 @@ try:
             xn.user_command(message)     
         elif message.startswith('#'): # then assume it is a GAD message
             gf.user_command(message) # Use the GAD fake thread
+        elif message.startswith('&'):
+            mc.user_command(message)
 
 except KeyboardInterrupt as e:
     print('Stopping')
