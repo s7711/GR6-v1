@@ -15,9 +15,9 @@
     <table style="width:100%;">
       <tr style="vertical-align: baseline;">
         <td><h1 style="border-bottom: none; margin: 0;"><a href="index.html" style=text-decoration:none>Generic Aiding</a></h1></td>
-        <td>
-        <p>Send: <input type="text" id="send_text" onkeypress="doit_onkeypress(event);"/></p>
-        </td>
+        <td><p>Send: <input type="text" id="send_text" onkeypress="doit_onkeypress(event);"/></p></td>
+        <td><button class="gadButton" onclick="onGadFixPos()">Fix here</button></td>
+        <td><button class="gadButton" onclick="onGadReleasePos()">Unfix</button></td>
       </tr>
     </table>
     
@@ -48,22 +48,22 @@
     </div>
 
     <!-- GNSS and innovations -->
-    <table style="width:100%;"><tr>
+    <table style="width:100%;; table-layout: fixed;"><tr>
       <td><div class="rcorners2">
           <p class="meas2">GNSS satellites</p>
           <p class="value2" id="mi_GpsNumObs">- - -</p>
           </div></td>
       <td><div class="rcorners2">
           <p class="meas2">GNSS position mode</p>
-          <p class="value2" id="mi_GpsPosMode">- - -</p>
+          <p class="value2" id="mt_GpsPosMode">- - -</p>
           </div></td>
       <td><div class="rcorners2">
           <p class="meas2">GNSS velocity mode</p>
-          <p class="value2" id="mi_GpsVelMode">- - -</p>
+          <p class="value2" id="mt_GpsVelMode">- - -</p>
           </div></td>
       <td><div class="rcorners2">
           <p class="meas2">GNSS attitude mode</p>
-          <p class="value2" id="mi_GpsAttMode">- - -</p>
+          <p class="value2" id="mt_GpsAttMode">- - -</p>
           </div></td>
       <td><div class="rcorners2">
           <p class="meas2">Innovations</p>
@@ -82,7 +82,7 @@
     <!-- Measurement table -->          
     <table class="dataframe, dataframe2" style="width: 500px;">
       <thead> <tr> <th>Measurement</th>  <th>Value</th> <th>Units</th> </tr></thead>
-        <tr> <td>GpsTime</td>          <td id="mi_GpsTime">---</td> <td></td> </tr>
+        <tr> <td>GpsTime</td>          <td id="ms_GpsTime">---</td> <td></td> </tr>
         <tr> <td>Image Gps time</td>   <td id="mi_ImageGpsTime">---</td> <td>s</td> </tr>
         <tr> <td>Exposure time</td>    <td id="mf3_ExposureTime">---</td> <td>s</td> </tr>
         <tr> <td>AmLocalN</td>         <td id="mf3_AmLocalN">---</td> <td>m</td> </tr>
@@ -116,6 +116,7 @@
     <script language="javascript" type="text/javascript">
       
       let chart; // needs to be global so update handlers can access it
+      let Lat, Lon, Alt; // Save for onGadFixPos
       function initChart()
       {         
         const ctx = document.getElementById("chart_1").getContext("2d");                     
@@ -150,6 +151,11 @@
           if (chart.data.datasets[0].data.length > 200) chart.data.datasets[0].data.shift();
           chart.data.datasets[2].data[0] = { x: data.AmLocalE, y: data.AmLocalN };
           chart.update();
+
+          // Don't worry if these are undefined, everything is forgiving
+          LatDeg = data.Lat*57.295779513;
+          LonDeg = data.Lon*57.295779513;
+          Alt = data.Alt;
         }, () => {
           const img = document.querySelector('img[src^="camera.mjpg"]');
           if (img) img.src = `camera.mjpg?t=${Date.now()}`;
@@ -191,6 +197,24 @@
           }
         });
       });
+
+      function onGadFixPos()
+      {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ip = urlParams.get('ip');
+
+        socket.emit('user-command?ip='+ip,`#pos_geo ${LatDeg} ${LonDeg} ${Alt}`);
+        socket.emit('user-command?ip='+ip,'#vel_ned 0 0 0');          
+      }
+
+      function onGadReleasePos()
+      {
+                const urlParams = new URLSearchParams(window.location.search);
+        const ip = urlParams.get('ip');
+
+        socket.emit('user-command?ip='+ip,'#pos_geo stop');
+        socket.emit('user-command?ip='+ip,'#vel_ned stop');          
+      }
 
       
       // Processes entries to the "send" box

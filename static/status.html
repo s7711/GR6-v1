@@ -93,6 +93,30 @@
     <tr> <td>Wifi connection status</td>                   <td id="mi_WifiConnectionStatus">---</td> <td></td> </tr>
   </table>
 
+ <h2>GNSS Dual-antenna</h2>
+  <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th>
+        <th>Value</th>
+        <th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Heading quality</td>  <td id="mi_HeadQuality">---</td> <td></td> </tr>
+    <tr> <td>Heading search type</td>         <td id="mi_HeadSearchType">---</td> <td></td> </tr>
+    <tr> <td>Heading seach status</td>         <td id="mi_HeadSearchStatus">---</td> <td></td> </tr>
+    <tr> <td>Heading seach ready</td>         <td id="mi_HeadSearchReady">---</td> <td></td> </tr>
+    <tr> <td>Initial number of amiguities</td>           <td id="mi_HeadSearchInit">---</td> <td></td> </tr>
+    <tr> <td>Remaining number of ambiguities</td>        <td id="mi_HeadSearchNum">---</td> <td></td> </tr>
+    <tr> <td>Number of constraints applied</td>          <td id="mi_HeadSearchConstr">---</td> <td></td> </tr>
+    <tr> <td>Heading seach duration</td>                 <td id="mi_HeadSearchTime">---</td> <td>s</td> </tr>
+
+    <tr> <td>Master satellite PRN in heading search</td>         <td id="mi_HeadSearchMaster">---</td> <td></td> </tr>
+    <tr> <td>Saleve 1 satellite PRN in heading search</td>       <td id="mi_HeadSearchSlave1">---</td> <td></td> </tr>
+    <tr> <td>Saleve 2 satellite PRN in heading search</td>       <td id="mi_HeadSearchSlave2">---</td> <td></td> </tr>
+    <tr> <td>Saleve 3 satellite PRN in heading search</td>       <td id="mi_HeadSearchSlave3">---</td> <td></td> </tr>
+  </table>
+
   <h2>Innovations</h2>
   <table class="dataframe, dataframe2">
     <thead>
@@ -152,6 +176,7 @@
     <tr> <td>Dual-GNSS baseline</td>     <td id="mf3_BaseLineLength">---</td>  <td id="mf3_BaseLineLengthAcc">---</td><td>m</td> </tr>
     <tr> <td>Heading misalignment</td>     <td id="mf3_HeadingMisAlign">---</td>  <td id="mf3_HeadingMisAlignAcc">---</td><td>deg</td> </tr>
   </table>
+
 
   <h2>Local reference frame</h2>
     <table class="dataframe, dataframe2">
@@ -259,11 +284,26 @@
     
   </table>
 
+    <h2>System</h2>
+    <table class="dataframe, dataframe2">
+    <thead>
+      <tr style="text-align:right;">
+        <th>Measurement</th><th>Value</th><th>Units</th>
+      </tr>
+    </thead>
+    <tr> <td>Wifi Signal Strength</td>      <td id="mi_WifiSigStrengthDbm">---</td>     <td>dBm</td> </tr>
+    <tr> <td>Wifi Signal Strength</td>      <td id="mi_WifiSigStrength">---</td>        <td></td> </tr>
+    <tr> <td>Cpu Usage</td>                 <td id="mf1_CpuUsage">---</td>              <td>%</td> </tr>
+    <tr> <td>Cpu Temperature</td>           <td id="mf1_CpuTemp">---</td>               <td>deg</td> </tr>    
+  </table>
+
+
   <script>
     window.addEventListener("load", function() {
       const urlParams = new URLSearchParams(window.location.search);
       const ip = urlParams.get('ip');
       startSocket('nav-status-'+ip, updateId);
+      startSocket('SysStatus',updateId)
     });
     function doit_onkeypress(event) {
       const key = event.key || event.keyCode;

@@ -19,5 +19,12 @@
     1280,
     960
   ],
-  "CameraRotation": 0
+  "CameraRotation": 0,
+  "MapBaseLLA": [
+    52.2347222,
+    -1.4608333,
+    175.0
+  ],
+  "MapResolution": 0.1,
+  "MapSizeMeters": 120.0
 }

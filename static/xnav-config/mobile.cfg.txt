@@ -36,7 +36,7 @@
 -fix_position-1
 -oppsedge_0
 -blength0.276_0.005
--heading_nosearch
+-heading_always
 -gps_pitch15
 -output_none
 -poll_com1_-1

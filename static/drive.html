@@ -7,22 +7,21 @@
   <link rel="icon" href="favicon.png">
   <script src="js/socket.io.min.js"></script>
   <script src="messages.js"></script>
+  <script src="js/joystick.js"></script>
 </head>
   <body>
-    <!-- Title: Drive -->
-    <table style="width:100%;">
-      <tr style="vertical-align: baseline;">
-        <td><h1 style="border-bottom: none; margin: 0;"><a href="index.html" style=text-decoration:none>Drive</a></h1></td>
-        <td>
-        <p>Send: <input type="text" id="send_text" onkeypress="doit_onkeypress(event);"/></p>
-        </td>
-      </tr>
-    </table>
-
-    <div style="position: relative; width: 640px;">
-    <img src="camera.mjpg" style="width: 640px; display: block;">
-    <canvas id="joystick" width="640" height="480"
-            style="position: absolute; top: 0; left: 0;"></canvas>
+    <div id="joystick-container" style="position: relative; width: 640px; height: 480px;">
+      <img src="camera.mjpg" id="camera-feed"
+          style="width: 100%; height: 100%; display: block;">
+      <canvas id="joystick"
+              style="position: absolute; top: 0; left: 0;"></canvas>
+    </div>
+    <div class="rcorners2">
+          <p class="meas2">Map XYZ (m)</p>
+          <span class="value2">(</span>
+          <span class="value2" id="mf2_MapLocalX">- - -</span>     <span class="value2">,</span>
+          <span class="value2" id="mf2_MapLocalY">- - -</span>     <span class="value2">,</span>
+          <span class="value2" id="mf2_MapLocalZ">- - -</span>     <span class="value2">)</span>
     </div>
 
 <script defer>
@@ -32,125 +31,9 @@
 
     window.addEventListener("load", function() {
         startSocket('motor', onMotorData)
-        drawOverlay()
+        startSocket('nav-data-192.168.196.147', onMotorData) // TODO: sort out IP address
+        initJoystick(socket)
     });
-
-    const canvas = document.getElementById("joystick");
-    const ctx = canvas.getContext("2d");
-    let isDragging = false;
-
-    function sendSV(left, right) {
-    const cmd = `&SV ${Math.round(left)} ${Math.round(right)}`;
-    socket.emit("user-command", cmd);
-    }
-
-    canvas.addEventListener("mousedown", (e) => {
-    isDragging = true;
-    handleMove(e);
-    });
-
-    canvas.addEventListener("mousemove", (e) => {
-    if (isDragging) handleMove(e);
-    });
-
-    canvas.addEventListener("mouseup", () => {
-    isDragging = false;
-    sendSV(0, 0); // Stop on release
-    });
-
-    canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    isDragging = true;
-    handleTouch(e);
-    });
-
-    canvas.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-    if (isDragging) handleTouch(e);
-    });
-
-    canvas.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    isDragging = false;
-    sendSV(0, 0); // Stop motors on lift
-    });
-
-
-    function handleMove(e) {
-        const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left - rect.width / 2) * 0.5;
-        const y = (rect.height / 2 - (e.clientY - rect.top)) * 0.5;
-
-        // Normalize into [-100, 100]
-        const forward = Math.max(-100, Math.min(100, y));
-        const turn = Math.max(-100, Math.min(100, x));
-
-        // Mix for differential drive
-        const left = forward - turn;
-        const right = forward + turn;
-
-        sendSV(left, right);
-    }
-
-    function handleTouch(e) {
-        const touch = e.touches[0];
-        const rect = canvas.getBoundingClientRect();
-        const x = (touch.clientX - rect.left - rect.width / 2) * 0.5;
-        const y = (rect.height / 2 - (touch.clientY - rect.top)) * 0.5;
-
-        const forward = Math.max(-100, Math.min(100, y));
-        const turn = Math.max(-100, Math.min(100, x));
-
-        const left = forward - turn;
-        const right = forward + turn;
-
-        sendSV(left, right);
-    }
-
-    function drawOverlay() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-
-        // Style
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-        ctx.lineWidth = 5;
-
-        // Draw concentric circles
-        [50, 100, 150, 200].forEach(radius => {
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-            ctx.stroke();
-        });
-
-        // Draw center point
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, 3, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,0.7)';
-        ctx.fill();
-    }
-
-
-
-    // Processes entries to the "send" box
-    // which can be used to send messages or to configure some
-    // parameters
-    function doit_onkeypress(event) {
-        const key = event.key || event.keyCode;
-
-        if (key === 'Enter' || key === 13) {
-            const urlParams = new URLSearchParams(window.location.search);
-            const ip = urlParams.get('ip');
-
-            const txt = document.getElementById("send_text").value;
-            args = txt.split(" ");
-            if( args[0] == "AmID" )
-            AmIdFilter = parseInt(args[1])
-            else
-            socket.emit('user-command?ip='+ip,txt);
-        }
-    }
 
   </script>
 </body>

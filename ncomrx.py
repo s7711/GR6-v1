@@ -1512,7 +1512,7 @@ class NcomRx:
             self._updateInnovation( 'GadInn1', statusBytes[2:3] )
             self._updateInnovation( 'GadInn2', statusBytes[3:4] )
             self._updateInnovation( 'GadInn3', statusBytes[4:5] )
-            self.status['GadTime'] = int.from_bytes(statusBytes[5:8], byteorder = 'little', signed=False) * 0.001
+            self.status['GadTime'] = int.from_bytes(statusBytes[5:7], byteorder = 'little', signed=False) * 0.001
 
 ########################################################################
 # Useful functions

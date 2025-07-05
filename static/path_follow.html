@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Path Following</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.png">
+  <script src="js/socket.io.min.js"></script>
+  <script src="messages.js"></script>
+  <script src="js/moment.min.js"></script>
+  <script src="js/chart.umd.min.js"></script>
+  <script src="js/chartjs-adapter-moment.min.js"></script>
+  <script src="js/joystick.js"></script>
+</head>
+<body>
+  <table style="width:100%; height:100%;">
+    <tr>
+      <!-- Top Left: Camera -->
+      <td style="width:50%; height:50%;">
+        <div id="joystick-container" style="position: relative; width: 640px; height: 480px;">
+          <img src="camera.mjpg" id="camera-feed"
+              style="width: 100%; height: 100%; display: block;">
+          <canvas id="joystick"
+                  style="position: absolute; top: 0; left: 0;"></canvas>
+        </div>
+      </td>
+      <!-- Top Right: XY Path Chart -->
+      <td style="width:50%; height:50%;">
+        <div class="chart-container" style="height: 100%;">
+          <canvas id="chart_xy"></canvas>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <!-- Bottom Left: Control Values -->
+      <td style="width:50%; height:50%;">
+        <div style="margin: 10px;">
+          <button onclick="sendPath()">Send path</button>
+          <button onclick="startPath()">Start following</button>
+          <button onclick="stopPath()">Stop following</button>
+        </div>
+        <div id="control_values" class="rcorners1">
+          <p class="meas1">State: <span id="mi_State">-</span></p>
+          <p class="meas1">Current X: <span id="mf2_CurrentX">-</span></p>
+          <p class="meas1">Current Y: <span id="mf2_CurrentY">-</span></p>
+          <p class="meas1">Current Heading: <span id="mf2_CurrentHeading">-</span></p>
+          <p class="meas1">Position Accuracy: <span id="mf2_PositionAccuracy">-</span></p>
+          <p class="meas1">Yaw Error: <span id="mf2_YawError">-</span></p>
+          <p class="meas1">Forward: <span id="mf2_Forward">-</span></p>
+          <p class="meas1">Turn: <span id="mf2_Turn">-</span></p>
+          <p class="meas1">Left Motor: <span id="mi_LeftMotor">-</span></p>
+          <p class="meas1">Right Motor: <span id="mi_RightMotor">-</span></p>
+          <p class="meas1">Target X: <span id="mf2_TargetX">-</span></p>
+          <p class="meas1">Target Y: <span id="mf2_TargetY">-</span></p>
+          <p class="meas1">Position Error: <span id="mf2_PositionError">-</span></p>
+        </div>
+      </td>
+
+      <!-- Bottom Right: Motor Charts -->
+      <td style="width:50%; height:50%;">
+        <div class="chart-container" style="height: 200px;">
+          <canvas id="chart_lm"></canvas>
+        </div>
+        <div class="chart-container" style="height: 200px;">
+          <canvas id="chart_rm"></canvas>
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <script defer>
+    let chartXY, chartLM, chartRM;
+    let trail = [];
+
+    const MAX_POINTS = 100;
+
+    function initCharts() {
+      // XY Chart
+      const ctxXY = document.getElementById('chart_xy').getContext('2d');
+      chartXY = new Chart(ctxXY, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            { label: 'Path', data: [], borderColor: 'gray', showLine: true, pointRadius: 0 },
+            { label: 'Trail', data: [], pointRadius: 4, pointBackgroundColor: "rgb(202,24,28)" },
+            { label: 'Current', data: [], pointRadius: 16, pointStyle: "cross", borderColor: "rgb(0,0,0)", borderWidth: 2, },
+            { label: 'Lookahead', data: [], backgroundColor: 'green', pointRadius: 5 },
+            { label: 'Heading', data: [], borderColor: 'red', showLine: true, pointRadius: 0 },
+          ]
+        },
+        options: {
+          animation: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              min: -5,  // Minimum X value
+              max: 5,   // Optional: fixed or dynamic
+              title: { display: true, text: 'X' }
+            },
+            y: {
+              min: -5,  // Minimum Y value
+              max: 5,   // Optional: fixed or dynamic
+              title: { display: true, text: 'Y' }
+            }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+
+      // Motor Charts
+      const ctxLM = document.getElementById('chart_lm').getContext('2d');
+      const ctxRM = document.getElementById('chart_rm').getContext('2d');
+      chartLM = createMotorChart(ctxLM, 'Left Motor');
+      chartRM = createMotorChart(ctxRM, 'Right Motor');
+    }
+
+    function createMotorChart(ctx, label) {
+      return new Chart(ctx, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            { label: label, data: [], borderColor: 'blue', backgroundColor: 'rgba(0,0,255,0.3)', showLine: true, radius: 0 }
+          ]
+        },
+        options: {
+          animation: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              type: 'time',
+              time: { unit: 'second', tooltipFormat: 'HH:mm:ss' },
+              title: { display: true, text: 'Time' }
+            },
+            y: {
+              min: -100,
+              max: 100,
+              title: { display: true, text: label }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    function updateXYBounds(centerX, centerY, minRange = 10) {
+      const half = minRange / 2;
+      chartXY.options.scales.x.min = centerX - half;
+      chartXY.options.scales.x.max = centerX + half;
+      chartXY.options.scales.y.min = centerY - half;
+      chartXY.options.scales.y.max = centerY + half;
+    }
+
+    let latestControl = {};
+
+    function onPathControlData(data) {
+      messages_updateId(data);
+      latestControl = data;  // Save for button use
+
+      const t = new Date();
+
+      // Update trail
+      trail.push({ x: data.CurrentX, y: data.CurrentY });
+      if (trail.length > MAX_POINTS) trail.shift();
+
+      chartXY.data.datasets[1].data = trail;
+      chartXY.data.datasets[2].data = [{ x: data.CurrentX, y: data.CurrentY }];
+      chartXY.data.datasets[3].data = [{ x: data.TargetX, y: data.TargetY }];
+
+      const headingDeg = data.CurrentHeading;
+      const headingRad = (90 - headingDeg) * Math.PI / 180;  // Convert to math-style yaw
+      const arrowLength = 0.5;  // meters
+
+      const hx = data.CurrentX + arrowLength * Math.cos(headingRad);
+      const hy = data.CurrentY + arrowLength * Math.sin(headingRad);
+
+      chartXY.data.datasets[4].data = [
+        { x: data.CurrentX, y: data.CurrentY },
+        { x: hx, y: hy }
+      ];
+
+      updateXYBounds(data.CurrentX, data.CurrentY);
+      chartXY.update('none');
+
+      // Update motor charts
+      chartLM.data.datasets[0].data.push({ x: t, y: data.LeftMotor });
+      chartRM.data.datasets[0].data.push({ x: t, y: data.RightMotor });
+
+      if (chartLM.data.datasets[0].data.length > MAX_POINTS) chartLM.data.datasets[0].data.shift();
+      if (chartRM.data.datasets[0].data.length > MAX_POINTS) chartRM.data.datasets[0].data.shift();
+
+      chartLM.update('none');
+      chartRM.update('none');
+    }
+
+    function onPathMapData(path) {
+      chartXY.data.datasets[0].data = path.map(p => ({ x: p[0], y: p[1] }));
+      chartXY.update('none');
+    }
+
+    function sendPath() {
+      const x = latestControl.CurrentX;
+      const y = latestControl.CurrentY;
+      const headingDeg = latestControl.CurrentHeading;
+
+      if (x === undefined || y === undefined || headingDeg === undefined) {
+        alert("Current position or heading not available.");
+        return;
+      }
+
+      const headingRad = headingDeg * Math.PI / 180;
+      const dx = 5.0 * Math.sin(headingRad);
+      const dy = 5.0 * Math.cos(headingRad);
+
+      const path = [
+        [x, y, 0.5],  // Start point with speed
+        [x + dx, y + dy, 0.5] 
+      ];
+
+      socket.emit('user-command', '>set-path ' + JSON.stringify(path));
+    }
+
+    function startPath() {
+      socket.emit('user-command', '>start-path');
+    }
+
+    function stopPath() {
+      socket.emit('user-command', '>stop-path');
+    }
+
+    window.addEventListener("load", function() {
+      initCharts();
+      startSocket('path-control', onPathControlData);
+      startSocket('path-map', onPathMapData);
+      initJoystick(socket);
+    });
+  </script>
+</body>
+</html>

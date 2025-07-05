@@ -19,15 +19,20 @@ import sys
 import os
 import logging
 import subprocess
+import numpy as np
 
 # Local modules
 import web_server
 import bgCamera2
 from config import CFG
+import config
 import gad_fake
 import gad_aruco
 import xnav
 import motors
+import sys_stat
+import maps
+import path_follow
 
 logging.info("Program starting") # Makes sure that the default logging handler is set up
          
@@ -49,6 +54,26 @@ gf = gad_fake.GadFake(CFG)                          # Starts the GAD fake thread
 
 mc = motors.MotorController()
 mc.ws = ws
+
+ss = sys_stat.sysStat()                             # Gathers and sends system information
+ss.ws = ws
+
+#{map_name: (creator, {channels:<n>, fill:<value>, dtype:<dtype>})}
+# 250704 - maps is not working yet. This might have to be replaced with a
+# different scheme.
+# TODO: fix maps
+map_list = {
+    "ground_rgb": ("create_ground_rgb", {"grid_spacing_m": 5.0}),
+    "wifi_strength": ("create_map", {"channels": 1, "fill": 0, "dtype": np.uint8}),
+    "ground_height": ("create_map", {"channels": 1, "fill": 100.0, "dtype": np.float32})
+}
+mp = maps.Maps(map_list)
+xn.nrxs.moreCalcs.append(maps.calcMapLocal)     # Add in calculation for MapLocal co-ordinates: XYZ
+
+pf = path_follow.PathFollow()
+pf.ws = ws
+pf.motor = mc
+pf.nrx = xn.nrxs.nrx[CFG['InsIp']]['decoder']
 
 #####################################################################
 # Start the program
@@ -77,9 +102,14 @@ try:
             gf.user_command(message) # Use the GAD fake thread
         elif message.startswith('&'):
             mc.user_command(message)
+        elif message.startswith('*'):
+            config.user_command(message)
+        elif message.startswith('>'):
+            pf.user_command(message)
 
 except KeyboardInterrupt as e:
     print('Stopping')
+    mp.save_all()
     # Needs extra code to stop threads, which may be blocked on sockets
     try:
         sys.exit(0)

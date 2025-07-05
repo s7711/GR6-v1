@@ -12,8 +12,9 @@
   <div id="devices"></div>
   <a href="motors.html" class="gadButton">Motors</a>
   <a href="drive.html" class="gadButton">Drive</a>
-  <button class="gadButton" onclick="websocket.send('$shutdown');">Shutdown</button>
-  <button class="gadButton" onclick="websocket.send('$internet-passthrough');">Start internet pass-through</button>
+  <a href="path_follow.html" class="gadButton">Path following</a>
+  <button class="gadButton" onclick="socket.emit('user-command','$shutdown');">Shutdown</button>
+  <button class="gadButton" onclick="socket.emit('user-command','$internet-passthrough');">Start internet pass-through</button>
 
   <script src="js/socket.io.min.js"></script>
   <script language="javascript" type="text/javascript">

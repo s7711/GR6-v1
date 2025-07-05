@@ -1,5 +1,17 @@
 # motors.py
 # Licensed under the MIT License – see LICENSE file for details.
+"""
+Used for sending and receiving commands from the arduino
+which controls the motors
+
+Currently expecting arduino code "GR6_motor_250630"
+
+Notes on the motor setup:
+* A commanded speed of 100 gives about 160 steps/s
+* The encoder and wheels have about 250 steps/metre
+* So SV100 is about 0.6 m/s
+* There's no control algorithm, so load will change the speed a lot
+"""
 
 import serial
 import threading
@@ -49,6 +61,9 @@ class MotorController:
             cmd = message[1:]
             self.arduino.write((cmd + "\n").encode())
             logging.info("[Arduino]:" + cmd)
+    
+    def send(self,lm,rm):
+        self.arduino.write((f"SV {int(lm)} {int(rm)}\n").encode())
 
     def shutdown(self):
         self.running = False

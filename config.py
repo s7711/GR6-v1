@@ -74,3 +74,19 @@ try:
     jFile.close()
 except Exception as e:
     logging.exception(e)
+
+# Can be used to set or change configurations from user_commands
+def user_command(message):
+    if message.startswith("*"):
+        args = message[1:].split()
+        if len(args) == 2:
+            CFG[args[0]] = args[1]
+            logging.info(f"[Config]: {args[0]} = {args[1]}")
+        else:
+            logging.warning(f"[Config] Bad configuration: {message}")
+
+def getCfgAsInt(key,default):
+    try:
+        return int(CFG[key])
+    except:
+        return default

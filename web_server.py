@@ -25,6 +25,7 @@ import collections
 import queue
 import re
 import time
+import config
 
 class WebServer:
     def __init__(self, port=8000):
@@ -64,7 +65,8 @@ class WebServer:
                 if self._camera_function is not None:
                     image_array = self._camera_function()
                     if image_array is not None:
-                        ret, jpeg = cv2.imencode('.jpg', image_array, [cv2.IMWRITE_JPEG_QUALITY, 30])
+                        quality = config.getCfgAsInt('WebImageQuality',30)
+                        ret, jpeg = cv2.imencode('.jpg', image_array, [cv2.IMWRITE_JPEG_QUALITY, quality])
                         if ret:
                             yield (b"--frame\r\n"
                                    b"Content-Type: image/jpeg\r\n\r\n" + jpeg.tobytes() + b"\r\n")

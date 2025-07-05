@@ -94,7 +94,7 @@ class GadFake:
                                 # #pos_geo lat lon alt
                                 gp = oxts_sdk.GadPosition(129)
                                 gp.pos_geodetic = [ float(v) for v in args[1:4] ]                    
-                                gp.pos_geodetic_var = [0.01,0.01,10.0,0.0,0.0,0.0] # Note: using 3 terms does not appear to work
+                                gp.pos_geodetic_var = [0.1,0.1,1.0,0.0,0.0,0.0] # Note: using 3 terms does not appear to work
                                 gp.set_time_void()
                                 gp.aiding_lever_arm_fixed = [0.0,0.0,0.0]
                                 gp.aiding_lever_arm_var = [0.001,0.001,0.001]
