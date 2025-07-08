@@ -27,10 +27,12 @@ import time
 import math
 import logging
 import json
+import os
 
 # Control parameters
 LOOKAHEAD_DISTANCE = 1.0  # metres
 HEADING_GAIN = 2.0        # gain for heading correction
+CTE_GAIN = 0.2            # Cross track error gain
 WHEEL_BASE = 0.42         # metres between wheel centers
 MAX_MOTOR = 200
 SCALE = 100 / 0.6         # motor units per m/s (based on 0.6 m/s ≈ 100)
@@ -53,8 +55,7 @@ class PathFollow:
         self.thread.daemon = True
         self.thread.start()
         self.path_control = {}
-        # TODO: we need some abort parameters, if path following isn't working
-
+        self.path_dir = os.path.expanduser('~/paths')
 
     def set_path(self,new_path):
         """
@@ -72,7 +73,8 @@ class PathFollow:
             self.ws.send("path-map",self.path)
 
     def start(self):
-        if self.nrx is not None and self.motor is not None:
+        if self.nrx is not None and self.motor is not None:        
+            self.projection_index = 0
             self.active = True
             self.ws.send("path-control", {'State': 1})
 
@@ -86,26 +88,39 @@ class PathFollow:
         map_last_sent = time.time()
         control_last_sent = map_last_sent
         while True:
-            if self.active:
-                self._update()
-            now = time.time()
-            if now - map_last_sent >= 10.0:
-                map_last_sent = now
-                if self.ws is not None:
-                    self.ws.send("path-map", self.path)
-            if now - control_last_sent >= 0.5:
-                control_last_sent = now
-                if self.ws is not None:
+            try:
+                if self.active:
+                    self._update()
+                now = time.time()
+                if now - map_last_sent >= 10.0:
+                    map_last_sent = now
+                    if self.ws is not None:
+                        self.ws.send("path-map", self.path)
+                    # Send list of available path files
                     try:
-                        self.path_control['State'] = 1 if self.active == True else 0
-                        self.path_control['CurrentX'] = self.nrx.nav['MapLocalX']
-                        self.path_control['CurrentY'] = self.nrx.nav['MapLocalY']
-                        self.path_control['CurrentHeading'] = self.nrx.nav['MapLocalHeading']
-                        ne, ee = self.nrx.status['NorthAcc'], self.nrx.status['EastAcc']
-                        self.path_control['PositionAccuracy'] = math.hypot(ne, ee)
-                    except: pass
-                    self.ws.send("path-control", self.path_control)
-            time.sleep(0.1)
+                        filenames = [
+                            f for f in os.listdir(self.path_dir)
+                            if f.endswith('.path') and os.path.isfile(os.path.join(self.path_dir, f))
+                        ]
+                        self.ws.send("path-paths", filenames)
+                    except Exception as e:
+                        logging.warning(f"[PathFollow] Could not list path files: {e}")
+                if now - control_last_sent >= 0.5:
+                    control_last_sent = now
+                    if self.ws is not None:
+                        try:
+                            self.path_control['State'] = 1 if self.active == True else 0
+                            self.path_control['CurrentX'] = self.nrx.nav['MapLocalX']
+                            self.path_control['CurrentY'] = self.nrx.nav['MapLocalY']
+                            self.path_control['CurrentHeading'] = self.nrx.nav['MapLocalHeading']
+                            ne, ee = self.nrx.status['NorthAcc'], self.nrx.status['EastAcc']
+                            self.path_control['PositionAccuracy'] = math.hypot(ne, ee)
+                        except: pass
+                        self.ws.send("path-control", self.path_control)
+                time.sleep(0.1)
+            except Exception as e:
+                logging.exception("[Path following]: Exception occurred in _loop")
+                self.stop()
 
     def _update(self):
         x, y = self.nrx.nav['MapLocalX'], self.nrx.nav['MapLocalY']
@@ -119,7 +134,7 @@ class PathFollow:
             return
         
         # Target point
-        tx, ty, speed, proj_x, proj_y = result
+        tx, ty, speed, proj_x, proj_y, cte = result
         dx, dy = (tx - x), (ty - y)
         target_angle = math.atan2(dy, dx)
         yaw_error = self._angle_diff(target_angle, yaw_rad)
@@ -133,9 +148,13 @@ class PathFollow:
             self.stop()
             return
         
-        pos_error = math.hypot(proj_x - x, proj_y - y)
+        dpx, dpy = (proj_x - x), (proj_y - y)
+        pos_error = math.hypot(dpx, dpy)
         if pos_error > MAX_LINE_DEPARTURE:
-            logging.info("[Path following]:Aborting path, position error too large")
+            logging.info(f"[Path following]:Aborting path, position error too large ({dpx:.2f} {dpy:.2f})")
+            logging.info(f"[Path following]: (x,y) = ({x:.2f},{y:.2f}), (proj_x,proj_y) = {proj_x:.2f},{proj_y:.2f}")
+            logging.info(f"[Path following]: Projection index = {self.projection_index}")
+            logging.info(f"[Path following]: Point at projection index = ({self.path[self.projection_index]})")
             self.ws.send("path-control", {'Aborted': 1})
             self.stop()
             return
@@ -150,7 +169,7 @@ class PathFollow:
 
         # Compute wheel speeds
         forward = speed
-        turn = HEADING_GAIN * yaw_error
+        turn = HEADING_GAIN * yaw_error + CTE_GAIN * cte # Not tuned yet, or even verified the sign of cte
 
         Vl = forward - (turn * WHEEL_BASE / 2)
         Vr = forward + (turn * WHEEL_BASE / 2)
@@ -246,12 +265,17 @@ class PathFollow:
         seg_len = math.hypot(dx, dy)           # length of this segment
         seg_remain = (1 - best_proj[2]) * seg_len # remaining part in this segment
 
+        # Compute cross track error
+        rx = robot_x - best_proj[0]
+        ry = robot_y - best_proj[1]
+        cte = (dx * ry - dy * rx) / seg_len
+
         if seg_remain >= remaining:
             # then lookahead is in this segment
             ratio = (best_proj[2] * seg_len + remaining) / seg_len
             lx = x1 + ratio * dx
             ly = y1 + ratio * dy
-            return (lx, ly, s1, proj_x, proj_y) # lookahead point and speed
+            return (lx, ly, s1, best_proj[0], best_proj[1], cte) # lookahead point, speed, closest point on the path, cross track error
 
         remaining -= seg_remain
         i = best_index + 1
@@ -264,7 +288,7 @@ class PathFollow:
                 ratio = remaining / seg_len
                 lx = x1 + ratio * (x2 - x1)
                 ly = y1 + ratio * (y2 - y1)
-                return (lx, ly, s1)
+                return (lx, ly, s1, best_proj[0], best_proj[1], cte) # lookahead point, speed, closest point on the path, cross track error
             remaining -= seg_len
             i += 1
 
@@ -277,6 +301,37 @@ class PathFollow:
                 path = json.loads(path_json)
                 self.set_path(path)
                 logging.info(f"[PathFollow] Received new path with {len(path)} points.")
+
+            elif message.startswith('>save-path '):
+                filename = message[len('>save-path '):].strip()
+                if not filename.endswith('.json'):
+                    filename += '.json'
+
+                os.makedirs(self.path_dir, exist_ok=True)
+
+                full_path = os.path.join(save_dir, filename)
+                with open(full_path, 'w') as f:
+                    json.dump(self.path, f, indent=2)
+
+                logging.info(f"[PathFollow] Saved path to {full_path}")
+
+            elif message.startswith('>load-path '):
+                filename = message[len('>load-path '):].strip()
+                if not filename.endswith('.json'):
+                    filename += '.json'
+
+                full_path = os.path.join(self.path_dir, filename)
+                if not os.path.isfile(full_path):
+                    logging.warning(f"[PathFollow] File not found: {full_path}")
+                    return
+
+                with open(full_path, 'r') as f:
+                    path = json.load(f)
+
+                self.set_path(path)
+                logging.info(f"[PathFollow] Loaded path from {full_path} with {len(path)} points.")
+                if self.ws is not None:
+                    self.ws.send("path-map", self.path)
 
             elif message == '>start-path':
                 self.start()

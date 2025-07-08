@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Path Maker</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="favicon.png">
+  <script src="js/socket.io.min.js"></script>
+  <script src="messages.js"></script>
+  <script src="js/moment.min.js"></script>
+  <script src="js/chart.umd.min.js"></script>
+  <script src="js/chartjs-adapter-moment.min.js"></script>
+  <script src="js/joystick.js"></script>
+</head>
+<body>
+  <table style="width:100%; height:100%;">
+    <tr>
+      <!-- Top Left: Camera + Joystick -->
+      <td style="width:50%; height:50%;">
+        <div id="joystick-container" style="position: relative; width: 640px; height: 480px;">
+          <img src="camera.mjpg" id="camera-feed" style="width: 100%; height: 100%; display: block;">
+          <canvas id="joystick" style="position: absolute; top: 0; left: 0;"></canvas>
+        </div>
+      </td>
+
+      <!-- Top Right: XY Map -->
+      <td style="width:50%; height:50%;">
+        <div class="chart-container" style="height: 100%;">
+          <canvas id="chart_xy"></canvas>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <!-- Bottom Left: Position Data -->
+      <td style="width:50%; height:50%;">
+        <div id="control_values" class="rcorners1" style="margin: 10px;">
+          <p class="meas1">Current X: <span id="mf2_CurrentX">-</span></p>
+          <p class="meas1">Current Y: <span id="mf2_CurrentY">-</span></p>
+          <p class="meas1">Current Heading: <span id="mf2_CurrentHeading">-</span></p>
+          <p class="meas1">Position Accuracy: <span id="mf2_PositionAccuracy">-</span></p>
+        </div>
+      </td>
+
+      <!-- Bottom Right: Path Controls -->
+      <td style="width:50%; height:50%;">
+        <div style="margin: 10px;">
+          <button onclick="newPath()">New Path</button>
+          <button onclick="addWaypoint()">Add Waypoint</button>
+          <input type="text" id="waypointSpeed" placeholder="Speed (m/s)" style="width: 100px;">
+          <br><br>
+          <button onclick="sendPath()">Send Path</button>
+          <button onclick="savePath()">Save Path</button>
+          <input type="text" id="pathFilename" placeholder="Filename" style="width: 150px;">
+        </div>
+      </td>
+    </tr>
+  </table>
+
+  <script defer>
+    let chartXY;
+    let path = [];
+    let trail = [];
+
+    function initChart() {
+      const ctxXY = document.getElementById('chart_xy').getContext('2d');
+      chartXY = new Chart(ctxXY, {
+        type: 'scatter',
+        data: {
+          datasets: [
+            { label: 'Path', data: [], borderColor: 'blue', showLine: true, pointRadius: 4 },
+            { label: 'Trail', data: [], pointRadius: 3, backgroundColor: 'rgba(202,24,28,0.6)' },
+            { label: 'Current', data: [], pointRadius: 10, pointStyle: 'cross', borderColor: 'black', borderWidth: 2 }
+          ]
+        },
+        options: {
+          animation: false,
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { min: -5, max: 5, title: { display: true, text: 'X' }},
+            y: { min: -5, max: 5, title: { display: true, text: 'Y' }}
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    function updateXYBounds(centerX, centerY, minRange = 10) {
+      const half = minRange / 2;
+      chartXY.options.scales.x.min = centerX - half;
+      chartXY.options.scales.x.max = centerX + half;
+      chartXY.options.scales.y.min = centerY - half;
+      chartXY.options.scales.y.max = centerY + half;
+    }
+
+    function updateChart() {
+      chartXY.data.datasets[0].data = path.map(p => ({ x: p[0], y: p[1] }));
+      chartXY.update('none');
+    }
+
+    function newPath() {
+      path = [];
+      updateChart();
+    }
+
+    function addWaypoint() {
+      const x = parseFloat(document.getElementById('mf2_CurrentX').textContent);
+      const y = parseFloat(document.getElementById('mf2_CurrentY').textContent);
+      const speed = parseFloat(document.getElementById('waypointSpeed').value) || 0.5;
+
+      if (isNaN(x) || isNaN(y)) {
+        alert("Current position not available.");
+        return;
+      }
+
+      path.push([x, y, speed]);
+      updateChart();
+    }
+
+    function sendPath() {
+      socket.emit('user-command', '>set-path ' + JSON.stringify(path));
+    }
+
+    function savePath() {
+      const filename = document.getElementById('pathFilename').value.trim();
+      if (!filename) {
+        alert("Please enter a filename.");
+        return;
+      }
+      socket.emit('user-command', '>set-path ' + JSON.stringify(path));
+      socket.emit('user-command', '>save-path ' + filename);
+    }
+
+    function onPathControlData(data) {
+      document.getElementById('mf2_CurrentX').textContent = data.CurrentX.toFixed(2);
+      document.getElementById('mf2_CurrentY').textContent = data.CurrentY.toFixed(2);
+      document.getElementById('mf2_CurrentHeading').textContent = data.CurrentHeading.toFixed(1);
+      document.getElementById('mf2_PositionAccuracy').textContent = data.PositionAccuracy.toFixed(2);
+
+      trail.push({ x: data.CurrentX, y: data.CurrentY });
+      if (trail.length > 100) trail.shift();
+
+      chartXY.data.datasets[1].data = trail;  // Trail
+      chartXY.data.datasets[2].data = [{ x: data.CurrentX, y: data.CurrentY }];  // Current position
+
+      updateXYBounds(data.CurrentX, data.CurrentY);  // Adjust view to follow robot
+      chartXY.update('none');
+    }
+
+    window.addEventListener("load", function() {
+      initChart();
+      startSocket('path-control', onPathControlData);
+      initJoystick(socket);
+    });
+  </script>
+</body>
+</html>

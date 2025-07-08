@@ -46,8 +46,8 @@ function initJoystick(socket) {
       y *= scale;
     }
 
-    const forward = (y / maxRadius) * 100;
-    const turn = (x / maxRadius) * 100;
+    const forward = (y / maxRadius) * 200;
+    const turn = (x / maxRadius) * 100;   // Attempt to make steering easier 250708
 
     const left = forward + turn;
     const right = forward - turn;

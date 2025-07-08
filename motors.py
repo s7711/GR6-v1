@@ -18,7 +18,7 @@ import threading
 import logging
 
 class MotorController:
-    def __init__(self, port='/dev/ttyUSB0', baud=9600, ws=None):
+    def __init__(self, port='/dev/ttyUSB0', baud=115200, ws=None):
         self.arduino = serial.Serial(port, baudrate=baud, timeout=0.5)
         self.ws = ws
         self.motor_state = {}
@@ -38,23 +38,30 @@ class MotorController:
                     logging.exception("[Serial Error]", e)
 
     def _decode_line(self, line):
-        if line.startswith("SP"):
-            try:
-                parts = line.strip().split()
+        try:
+            parts = line.strip().split()
+            if not parts:
+                return
+
+            if parts[0] == "EN" and len(parts) >= 3:
                 self.motor_state.update({
-                    'LM_setpoint': int(parts[1]),
-                    'RM_setpoint': int(parts[2]),
-                    'LM_position': int(parts[4]),
-                    'RM_position': int(parts[5]),
-                    'LM_error': int(parts[7]),
-                    'RM_error': int(parts[8]),
-                    'LM_pwm': int(parts[10]),
-                    'RM_pwm': int(parts[11])
+                    'LM_position': int(parts[1]),
+                    'RM_position': int(parts[2])
                 })
-            except Exception as e:
-                logging.exception("[Decode Error]", e)
-        else:
-            logging.info("From arduino: " + line)
+
+            elif parts[0] == "SV" and len(parts) >= 3:
+                self.motor_state.update({
+                    'LM_pwm': int(parts[1]),
+                    'RM_pwm': int(parts[2])
+                })
+
+            elif parts[0] == "WP" and len(parts) >= 2:
+                self.motor_state.update({
+                    'WaterPump': int(parts[1])
+                })
+
+        except Exception as e:
+            logging.exception("[Decode Error] %s", e)
 
     def user_command(self, message):
         if message.startswith("&"):

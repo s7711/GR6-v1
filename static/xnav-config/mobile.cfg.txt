@@ -35,7 +35,7 @@
 -wheelspeed-1
 -fix_position-1
 -oppsedge_0
--blength0.276_0.005
+-blength0.368_0.005
 -heading_always
 -gps_pitch15
 -output_none

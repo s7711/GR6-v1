@@ -13,6 +13,15 @@
   <script src="js/joystick.js"></script>
 </head>
 <body>
+  <!-- Path file selector -->
+  <div style="margin: 10px;">
+    <details>
+      <summary style="cursor: pointer;">Available Paths</summary>
+      <select id="pathList" size="5" style="width: 160px;"></select>
+      <br>
+      <button onclick="loadSelectedPath()">Load Selected</button>
+    </details>
+  </div>
   <table style="width:100%; height:100%;">
     <tr>
       <!-- Top Left: Camera -->
@@ -38,18 +47,22 @@
           <button onclick="sendPath()">Send path</button>
           <button onclick="startPath()">Start following</button>
           <button onclick="stopPath()">Stop following</button>
+          <input type="text" id="pathFilename" placeholder="Filename" style="width: 150px;">
+          <button onclick="loadPath()">Load path</button>
+          <a href="path_make.html">Open path editor</a>
+          <button onclick="sendWater()">Water</button>
         </div>
         <div id="control_values" class="rcorners1">
           <p class="meas1">State: <span id="mi_State">-</span></p>
           <p class="meas1">Current X: <span id="mf2_CurrentX">-</span></p>
           <p class="meas1">Current Y: <span id="mf2_CurrentY">-</span></p>
-          <p class="meas1">Current Heading: <span id="mf2_CurrentHeading">-</span></p>
-          <p class="meas1">Position Accuracy: <span id="mf2_PositionAccuracy">-</span></p>
+          <p class="meas1">Current heading: <span id="mf2_CurrentHeading">-</span></p>
+          <p class="meas1">Position accuracy: <span id="mf2_PositionAccuracy">-</span></p>
           <p class="meas1">Yaw Error: <span id="mf2_YawError">-</span></p>
           <p class="meas1">Forward: <span id="mf2_Forward">-</span></p>
           <p class="meas1">Turn: <span id="mf2_Turn">-</span></p>
-          <p class="meas1">Left Motor: <span id="mi_LeftMotor">-</span></p>
-          <p class="meas1">Right Motor: <span id="mi_RightMotor">-</span></p>
+          <p class="meas1">Left motor: <span id="mi_LeftMotor">-</span></p>
+          <p class="meas1">Right motor: <span id="mi_RightMotor">-</span></p>
           <p class="meas1">Target X: <span id="mf2_TargetX">-</span></p>
           <p class="meas1">Target Y: <span id="mf2_TargetY">-</span></p>
           <p class="meas1">Position Error: <span id="mf2_PositionError">-</span></p>
@@ -229,6 +242,19 @@
 
     function stopPath() {
       socket.emit('user-command', '>stop-path');
+    }
+
+    function loadPath() {
+      const filename = document.getElementById('pathFilename').value.trim();
+      if (!filename) {
+        alert("Please enter a filename.");
+        return;
+      }
+      socket.emit('user-command', '>load-path ' + filename);
+    }
+
+    function sendWater() {
+      socket.emit('user-command', '&WP 1');
     }
 
     window.addEventListener("load", function() {
