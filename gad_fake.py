@@ -30,6 +30,8 @@ class GadFake:
         self._thread = threading.Thread(target=self.serve_gad, daemon=True)
         self._running = True
         self._thread.start()
+        self.packets_sent = 0
+        self.ws = None
 
     def user_command(self, message):
         """
@@ -126,16 +128,20 @@ class GadFake:
                 try:
                     gh.set_output_mode_to_udp(CFG['InsIp'])
                     gh.send_packet(pkt)
+                    self.packets_sent += 1
                 except Exception as e:
                     logging.warning(e)
                     del gadPkts[k]                        # Don't bother with this again
+
+            if self.ws is not None:
+                self.ws.send("gad_fake", {'GadFakePacketsSent': self.packets_sent,
+                                          'GadFakePacketsListLen': len(gadPkts)})
     
     def stop(self):
         """
         Stop the GAD thread.
         This will stop sending updates and terminate the thread.
         """
-        self._running
-        self._thread.join()  # Wait for the thread to finish
         self._running = False
+        self._thread.join()  # Wait for the thread to finish
 

@@ -28,6 +28,7 @@ from config import CFG
 import config
 import gad_fake
 import gad_aruco
+import gad_wheelspeed
 import xnav
 import motors
 import sys_stat
@@ -51,9 +52,15 @@ ga.cam = cam
 ws.set_camera(ga.ar.img)                            # web server /camera.mjpg will use this image
 
 gf = gad_fake.GadFake(CFG)                          # Starts the GAD fake thread
+gf.ws = ws                                          # Set the web server for the GAD fake to send data to
 
 mc = motors.MotorController()
 mc.ws = ws
+
+gw = gad_wheelspeed.GadWheelspeed()                 # GadWheelspeed sends updates from motor
+gw.ws = ws
+gw.nrxs = xn.nrxs
+mc.gad_wheelspeed = gw
 
 ss = sys_stat.sysStat()                             # Gathers and sends system information
 ss.ws = ws
@@ -94,7 +101,7 @@ try:
             subprocess.run('sudo shutdown now', shell=True)
             continue
         elif message == '$internet-passthrough':
-            subprocess.call('./shareWlan1Eth0')
+            subprocess.call('./shareWlan0Eth0')
             continue
         elif message.startswith('!'):
             xn.user_command(message)     

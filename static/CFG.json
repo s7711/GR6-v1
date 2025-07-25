@@ -26,5 +26,16 @@
     175.0
   ],
   "MapResolution": 0.1,
-  "MapSizeMeters": 120.0
+  "MapSizeMeters": 120.0,
+  "WheelPosLeft": [
+    -0.203,
+    0.062,
+    0.084
+  ],
+  "WheelPosRight": [
+    0.208,
+    0.062,
+    0.084
+  ],
+  "WheelSf": 0.6
 }

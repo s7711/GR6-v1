@@ -91,12 +91,9 @@ class GadAruco:
                     am['ExposureTime'] = ex
                     am['MachineTime'] = time.perf_counter()
                     nrx = self.nrxs.nrx[self.CFG['InsIp']]['decoder']
-                    imTime = nrx.mt2Gps(mt)
-                    am['ImageGpsTime'] =  imTime
-                    
-                    t1 = (imTime - ncomrx.GPS_STARTTIME).total_seconds()
-                    imGpsWeek = math.floor(t1 / 604800)
-                    imGpsSeconds = t1 % 604800
+                    imGpsWeek, imGpsSeconds  = nrx.mt2Gps(mt)
+                    am['ImageGpsTime'] =  ncomrx.GPS_STARTTIME + \
+                        datetime.timedelta( minutes=imGpsWeek*10080, seconds=imGpsSeconds )
 
                     # Note: measurements are in camera co-ordinates Xc, Yc, Zc
                     # cm used for camera to marker (not centimetres!)

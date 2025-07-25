@@ -304,12 +304,12 @@ class PathFollow:
 
             elif message.startswith('>save-path '):
                 filename = message[len('>save-path '):].strip()
-                if not filename.endswith('.json'):
-                    filename += '.json'
+                if not filename.endswith('.path'):
+                    filename += '.path'
 
                 os.makedirs(self.path_dir, exist_ok=True)
 
-                full_path = os.path.join(save_dir, filename)
+                full_path = os.path.join(self.path_dir, filename)
                 with open(full_path, 'w') as f:
                     json.dump(self.path, f, indent=2)
 
@@ -317,8 +317,8 @@ class PathFollow:
 
             elif message.startswith('>load-path '):
                 filename = message[len('>load-path '):].strip()
-                if not filename.endswith('.json'):
-                    filename += '.json'
+                if not filename.endswith('.path'):
+                    filename += '.path'
 
                 full_path = os.path.join(self.path_dir, filename)
                 if not os.path.isfile(full_path):

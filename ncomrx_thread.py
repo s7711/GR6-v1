@@ -45,7 +45,7 @@ class NcomRxThread(threading.Thread):
         while(self.keepGoing):
             # Get data from socket
             nb, addrport = self.sock.recvfrom(256) # New bytes
-            myTime = time.perf_counter() # Grab time asap
+            myTime = time.monotonic() # Grab time asap
             
             addr = addrport[0] # Just grab the IP address, not port
             

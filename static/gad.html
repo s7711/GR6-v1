@@ -76,6 +76,7 @@
               <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnVelZ"></span></div></td>
               <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnHeading"></span></div></td>
               <td><div class="loadbar"><span class="bar" style='height:50%;' id="InnPitch"></span></div></td>
+              <td><div class="loadbar"><strong class="bar" style='height:50%; background-color:grey' id="InnWSpeed"></strong></div></td>
               </tr></table></div>
         </td></tr></table>
     
@@ -83,6 +84,7 @@
     <table class="dataframe, dataframe2" style="width: 500px;">
       <thead> <tr> <th>Measurement</th>  <th>Value</th> <th>Units</th> </tr></thead>
         <tr> <td>GpsTime</td>          <td id="ms_GpsTime">---</td> <td></td> </tr>
+        <tr> <td>Gws Gps Time</td>      <td id="ms_GwsGpsTime">---</td> <td></td> </tr>
         <tr> <td>Image Gps time</td>   <td id="mi_ImageGpsTime">---</td> <td>s</td> </tr>
         <tr> <td>Exposure time</td>    <td id="mf3_ExposureTime">---</td> <td>s</td> </tr>
         <tr> <td>AmLocalN</td>         <td id="mf3_AmLocalN">---</td> <td>m</td> </tr>
@@ -104,12 +106,21 @@
         <tr> <td>Amc Rodrigues 0</td>   <td id="mf3_AmcRodrigues0">---</td> <td></td> </tr>
         <tr> <td>Amc Rodrigues 1</td>   <td id="mf3_AmcRodrigues1">---</td> <td></td> </tr>
         <tr> <td>Amc Rodrigues 2</td>   <td id="mf3_AmcRodrigues2">---</td> <td></td> </tr>
+        <tr> <td>Gws Left Velocity</td> <td id="mf1_GwsLeftVelocity">---</td> <td>m/s</td> </tr>
+        <tr> <td>Gws Right Velocity</td><td id="mf1_GwsRightVelocity">---</td> <td>m/s</td> </tr>
+        <tr> <td>Gws Left Count</td>   <td id="mf1_GwsLeftCount">---</td> <td></td> </tr>
+        <tr> <td>Gws Right Count</td>  <td id="mf1_GwsRightCount">---</td> <td></td> </tr>
+        <tr> <td>Gws Gps Seconds</td>      <td id="mf3_GwsGpsSeconds">---</td> <td></td> </tr>
+        <tr> <td>Gws packets sent</td>   <td id="mi_GwsPacketsSent">---</td> <td></td> </tr>        
         <tr> <td>GAD Stream ID</td>   <td id="mi_GadStreamId">---</td> <td></td> </tr>
         <tr> <td>Number of consecutive rejected GAD updates</td>   <td id="mi_GadReject">---</td> <td></td> </tr>
         <tr> <td>GAD Innovation 1</td>   <td id="mf2_GadInn1">---</td> <td></td> </tr>
         <tr> <td>GAD Innovation 2</td>   <td id="mf2_GadInn2">---</td> <td></td> </tr>
         <tr> <td>GAD Innovation 3</td>   <td id="mf2_GadInn3">---</td> <td></td> </tr>
         <tr> <td>Time of GAD update</td>   <td id="mf3_GadTime">---</td> <td></td> </tr>
+        <tr> <td>Fake GAD list length</td>   <td id="mi_GadFakePacketsSent">---</td> <td></td> </tr>
+        <tr> <td>Fake GAD packets sent</td>   <td id="mi_GadFakePacketsListLen">---</td> <td></td> </tr>
+        
     </table>
 
     <!--Javascript to run this page -->    
@@ -196,6 +207,13 @@
             chart.update();
           }
         });
+      });
+
+      startSocket("gad_fake", function(data) {
+        updateId(data)
+      });
+      startSocket("gad_wheelspeed", function(data) {
+        updateId(data)
       });
 
       function onGadFixPos()

@@ -145,6 +145,12 @@ class NcomRx:
         self.connection['timeOffset'] = None   # GpsTime = machineTime + timeOffset
         self.f1 = 0.1            # Factor to decrease timeOffset
         self.f2 = 0.001          # Factor to increase timeOffset
+        # ... for computing variance of the jitter
+        self.timeJitterMean = 0.0
+        self.timeJitterVariance = 0.0
+        self.timeJitterMax = 0.0
+        self.timeJitterDecayStdev = 0.99  # 1 - dt/Tdecay
+        self.timeJitterDecayMax = 0.999   # 1 - dt/Tdecay
         
         # List of functions that can perform additional calculations
         # These functions have the definition
@@ -260,6 +266,14 @@ class NcomRx:
                     to = self.nav['GpsSeconds'] + self.status['GpsMinutes'] * 60.0 - machineTime
                     dto = to - self.connection['timeOffset'] # This is the unfiltered adjustment for this epoch
                     self.connection['timeOffset'] += dto*self.f2 if dto < 0.0 else dto*self.f1
+                    self.connection['timeJitter_ms'] = dto * 1000.0
+                    self.timeJitterMean = self.timeJitterDecayStdev * self.timeJitterMean + (1.0 - self.timeJitterDecayStdev) * dto
+                    self.timeJitterVariance = self.timeJitterDecayStdev * self.timeJitterVariance + (1.0 - self.timeJitterDecayStdev) * (dto - self.timeJitterMean) ** 2
+                    self.connection['timeJitterStdev_ms'] = math.sqrt(self.timeJitterVariance) * 1000.0
+                    to_abs = abs(dto)
+                    self.timeJitterMax = to_abs if to_abs > self.timeJitterMax else self.timeJitterMax * self.timeJitterDecayMax
+                    self.connection['timeJitterMax_ms'] = self.timeJitterMax * 1000.0
+
             except:
                 self.connection['timeOffset'] = None
             
@@ -304,13 +318,13 @@ class NcomRx:
 
     def mt2Gps(self, machineTime):
         # Converts machineTime to GpsTime
-        # todo: return the stdev estimate as well as the converted time
         if self.connection['timeOffset'] != None:
             gt = machineTime + self.connection['timeOffset']
-            return GPS_STARTTIME + datetime.timedelta( seconds=machineTime+self.connection['timeOffset'] )
+            GpsWeek = math.floor(gt / 604800)
+            GpsSeconds = gt % 604800
+            return (GpsWeek, GpsSeconds)
         else:
             return None
-
 
     ####################################################################
     # Decoders for status channels.

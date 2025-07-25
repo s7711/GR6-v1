@@ -48,7 +48,16 @@
       </tr>
     </table>
     <div class="rcorners1">
-        <p class="meas1">State: <span id="mi_WaterPump">-</span></p>
+        <p class="meas1">Water pump: <span id="mi_WaterPump">-</span></p>
+        <p class="meas1">Propotional gain (Kp): <span id="mf2_LM_Kp">-</span>, <span id="mf2_RM_Kp">-</span></p>
+        <p class="meas1">Integral gain (Ki): <span id="mf2_LM_Ki">-</span>, <span id="mf2_RM_Ki">-</span></p>
+        <p class="meas1">Prediction gain (Kv): <span id="mf2_LM_Kv">-</span>, <span id="mf2_RM_Kv">-</span> (Kv: input to output gain)</p>
+        <p class="meas1">Prediction filter (Ka): <span id="mf2_LM_Ka">-</span>, <span id="mf2_RM_Ka">-</span> (Ka = 1.0 to ignore predicted velocity input)</p>
+        <p class="meas1">Measurement filter (Kb): <span id="mf2_LM_Kb">-</span>, <span id="mf2_RM_Kb">-</span> (Kb = 0.0 to use raw velocity)</p>
+        <p class="meas1">Maximum integral error (Mi): <span id="mf2_LM_Mi">-</span>, <span id="mf2_RM_Mi">-</span></p>
+        <p class="meas1">Integral gain decay (Id): <span id="mf2_LM_Id">-</span>, <span id="mf2_RM_Id">-</span></p>
+        <p class="meas1">Deadband (Db): <span id="mi_LM_Db">-</span>, <span id="mi_RM_Db">-</span></p>
+        <p class="meas1">Maximum acceleration (Am): <span id="mi_LM_Am">-</span>, <span id="mi_RM_Am">-</span></p>
     </div>
 
   <script defer>
@@ -65,13 +74,16 @@
 const MAX_POINTS = 120;
 
 // Helper to create a time series scatter chart
-function createScatterChart(ctx, labelX, labelY, yMin, yMax, yLabel) {
+function createScatterChart(ctx, yMin, yMax, yLabel) {
     return new Chart(ctx, {
         type: 'scatter',
         data: {
             datasets: [
-                { label: labelX, data: [], borderColor: 'red', backgroundColor: 'rgba(255,0,0,0.5)', showLine: true, radius: 0, borderWidth: 2 },
-                { label: labelY, data: [], borderColor: 'green', backgroundColor: 'rgba(0,255,0,0.5)', showLine: true, radius: 0, borderWidth: 2 },
+                { label: "Set Velocity", data: [], borderColor: 'red', showLine: true, radius: 0, borderWidth: 3 },
+                { label: "Filtered velocity", data: [], borderColor: 'green', showLine: true, radius: 0, borderWidth: 4 },
+                { label: "Error signal", data: [], borderColor: 'blue', showLine: true, radius: 0, borderWidth: 2 },
+                { label: "Integrated error", data: [], borderColor: 'orange', showLine: true, radius: 0, borderWidth: 2 },
+                { label: "Motor output", data: [], borderColor: 'purple', showLine: true, radius: 0, borderWidth: 3 },
             ]
         },
         options: {
@@ -91,7 +103,7 @@ function createScatterChart(ctx, labelX, labelY, yMin, yMax, yLabel) {
                 }
             },
             plugins: {
-                legend: { display: false }
+                legend: { display: true }
             }
         }
     });
@@ -101,8 +113,8 @@ function createScatterChart(ctx, labelX, labelY, yMin, yMax, yLabel) {
 function initCharts() {
     const ctxLM = document.getElementById('chart_lm').getContext('2d');
     const ctxRM = document.getElementById('chart_rm').getContext('2d');
-    chartLM = createScatterChart(ctxLM, 'LM error', 'LM PWM', -100, 100, 'Left motor');
-    chartRM = createScatterChart(ctxRM, 'RM error', 'RM PWM', -100, 100, 'Right motor');
+    chartLM = createScatterChart(ctxLM, -100, 100, 'Left motor');
+    chartRM = createScatterChart(ctxRM, -100, 100, 'Right motor');
 }
 
 // Call this for each new nav-data point
@@ -110,12 +122,18 @@ function updateCharts(data) {
     if (!chartLM || !chartRM) return;
     const t = new Date();
 
-    // Accelerations
-    chartLM.data.datasets[0].data.push({ x: t, y: data.LM_error });
-    chartLM.data.datasets[1].data.push({ x: t, y: data.LM_pwm });
-    // Angular rates
-    chartRM.data.datasets[0].data.push({ x: t, y: data.RM_error });
-    chartRM.data.datasets[1].data.push({ x: t, y: data.RM_pwm });
+    // Left motor data
+    chartLM.data.datasets[0].data.push({ x: t, y: data.LM_setvel });
+    chartLM.data.datasets[1].data.push({ x: t, y: data.filtLM_vel });
+    chartLM.data.datasets[2].data.push({ x: t, y: data.errLM });
+    chartLM.data.datasets[3].data.push({ x: t, y: data.integralLM });
+    chartLM.data.datasets[4].data.push({ x: t, y: data.outLM });
+    // Right motor data
+    chartRM.data.datasets[0].data.push({ x: t, y: data.RM_setvel });
+    chartRM.data.datasets[1].data.push({ x: t, y: data.filtRM_vel });
+    chartRM.data.datasets[2].data.push({ x: t, y: data.errRM });
+    chartRM.data.datasets[3].data.push({ x: t, y: data.integralRM });
+    chartRM.data.datasets[4].data.push({ x: t, y: data.outRM });
 
     // Keep only the last MAX_POINTS
     for (let ds of chartLM.data.datasets) {

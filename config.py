@@ -80,7 +80,7 @@ def user_command(message):
     if message.startswith("*"):
         args = message[1:].split()
         if len(args) == 2:
-            CFG[args[0]] = args[1]
+            CFG[args[0]] = float(args[1])
             logging.info(f"[Config]: {args[0]} = {args[1]}")
         else:
             logging.warning(f"[Config] Bad configuration: {message}")

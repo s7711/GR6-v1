@@ -13,15 +13,44 @@
   <script src="js/joystick.js"></script>
 </head>
 <body>
-  <!-- Path file selector -->
-  <div style="margin: 10px;">
-    <details>
-      <summary style="cursor: pointer;">Available Paths</summary>
-      <select id="pathList" size="5" style="width: 160px;"></select>
-      <br>
-      <button onclick="loadSelectedPath()">Load Selected</button>
-    </details>
+  <!-- Flex container for buttons -->
+  <div style="margin:10px; display:flex; gap:10px; flex-wrap:wrap;">
+    <button class="gadButton"
+            style="flex:1; min-width:120px; width:auto;"
+            onclick="togglePathMenu()">Paths</button>
+    <button class="gadButton"
+            style="flex:1; min-width:120px; width:auto;"
+            onclick="send2mPath()">Send 2m path</button>
+    <button class="gadButton"
+            style="flex:1; min-width:120px; width:auto;"
+            onclick="startPath()">Start following</button>
+    <button class="gadButton"
+            style="flex:1; min-width:120px; width:auto;"
+            onclick="stopPath()">Stop following</button>
+    <button class="gadButton"
+            style="flex:1; min-width:120px; width:auto;"
+            onclick="sendWater()">Water</button>
   </div>
+
+
+  <!-- Floating menu OUTSIDE the flex container -->
+  <div id="pathMenu" style="
+    display: none;
+    position: absolute;
+    z-index: 1000;
+    background-color: white;
+    border: 4px solid #ca181c;
+    border-radius: 10px;
+    padding: 40px;
+    width: 400px;
+    max-height: 600px;
+    overflow-y: auto;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+  ">
+    <select id="pathList" size="10" style="width: 100%; font-size: 20px; cursor: pointer; padding: 8px; margin-bottom: 10px;"></select>
+    <button class="gadButton" style="width: 90%;" onclick="loadSelectedPath()">Load Selected</button>
+  </div>
+
   <table style="width:100%; height:100%;">
     <tr>
       <!-- Top Left: Camera -->
@@ -43,15 +72,6 @@
     <tr>
       <!-- Bottom Left: Control Values -->
       <td style="width:50%; height:50%;">
-        <div style="margin: 10px;">
-          <button onclick="sendPath()">Send path</button>
-          <button onclick="startPath()">Start following</button>
-          <button onclick="stopPath()">Stop following</button>
-          <input type="text" id="pathFilename" placeholder="Filename" style="width: 150px;">
-          <button onclick="loadPath()">Load path</button>
-          <a href="path_make.html">Open path editor</a>
-          <button onclick="sendWater()">Water</button>
-        </div>
         <div id="control_values" class="rcorners1">
           <p class="meas1">State: <span id="mi_State">-</span></p>
           <p class="meas1">Current X: <span id="mf2_CurrentX">-</span></p>
@@ -71,18 +91,15 @@
 
       <!-- Bottom Right: Motor Charts -->
       <td style="width:50%; height:50%;">
-        <div class="chart-container" style="height: 200px;">
-          <canvas id="chart_lm"></canvas>
-        </div>
-        <div class="chart-container" style="height: 200px;">
-          <canvas id="chart_rm"></canvas>
+        <div class="chart-container" style="height: 100%;">
+          <canvas id="chart_motor"></canvas>
         </div>
       </td>
     </tr>
   </table>
 
   <script defer>
-    let chartXY, chartLM, chartRM;
+    let chartXY, chartMotor;
     let trail = [];
 
     const MAX_POINTS = 100;
@@ -122,18 +139,19 @@
       });
 
       // Motor Charts
-      const ctxLM = document.getElementById('chart_lm').getContext('2d');
-      const ctxRM = document.getElementById('chart_rm').getContext('2d');
-      chartLM = createMotorChart(ctxLM, 'Left Motor');
-      chartRM = createMotorChart(ctxRM, 'Right Motor');
+      const ctxMotor = document.getElementById('chart_motor').getContext('2d');
+      chartMotor = createMotorChart(ctxMotor);
     }
 
-    function createMotorChart(ctx, label) {
+    function createMotorChart(ctx) {
       return new Chart(ctx, {
         type: 'scatter',
         data: {
           datasets: [
-            { label: label, data: [], borderColor: 'blue', backgroundColor: 'rgba(0,0,255,0.3)', showLine: true, radius: 0 }
+            { label: "Left Set Velocity", data: [], borderColor: 'red', showLine: true, radius: 0, borderWidth: 4 },
+            { label: "Left Motor output", data: [], borderColor: 'pink', showLine: true, radius: 0, borderWidth: 2 },
+            { label: "Right Set Velocity", data: [], borderColor: 'blue', showLine: true, radius: 0, borderWidth: 4 },
+            { label: "Right Motor output", data: [], borderColor: 'cyan', showLine: true, radius: 0, borderWidth: 2 },
           ]
         },
         options: {
@@ -147,9 +165,9 @@
               title: { display: true, text: 'Time' }
             },
             y: {
-              min: -100,
-              max: 100,
-              title: { display: true, text: label }
+              min: -200,
+              max: 200,
+              title: { display: true, text: 'Motor signals' }
             }
           },
           plugins: {
@@ -173,8 +191,6 @@
       messages_updateId(data);
       latestControl = data;  // Save for button use
 
-      const t = new Date();
-
       // Update trail
       trail.push({ x: data.CurrentX, y: data.CurrentY });
       if (trail.length > MAX_POINTS) trail.shift();
@@ -197,16 +213,19 @@
 
       updateXYBounds(data.CurrentX, data.CurrentY);
       chartXY.update('none');
+    }
 
+    function onMotorData(data) {
       // Update motor charts
-      chartLM.data.datasets[0].data.push({ x: t, y: data.LeftMotor });
-      chartRM.data.datasets[0].data.push({ x: t, y: data.RightMotor });
+      const t = new Date();
+      chartMotor.data.datasets[0].data.push({ x: t, y: data.LM_setvel });
+      chartMotor.data.datasets[1].data.push({ x: t, y: data.outLM });
+      chartMotor.data.datasets[2].data.push({ x: t, y: data.RM_setvel });
+      chartMotor.data.datasets[3].data.push({ x: t, y: data.outRM });
 
-      if (chartLM.data.datasets[0].data.length > MAX_POINTS) chartLM.data.datasets[0].data.shift();
-      if (chartRM.data.datasets[0].data.length > MAX_POINTS) chartRM.data.datasets[0].data.shift();
+      if (chartMotor.data.datasets[0].data.length > MAX_POINTS) chartMotor.data.datasets[0].data.shift();
 
-      chartLM.update('none');
-      chartRM.update('none');
+      chartMotor.update('none');
     }
 
     function onPathMapData(path) {
@@ -214,7 +233,7 @@
       chartXY.update('none');
     }
 
-    function sendPath() {
+    function send2mPath() {
       const x = latestControl.CurrentX;
       const y = latestControl.CurrentY;
       const headingDeg = latestControl.CurrentHeading;
@@ -244,23 +263,43 @@
       socket.emit('user-command', '>stop-path');
     }
 
-    function loadPath() {
-      const filename = document.getElementById('pathFilename').value.trim();
+    function sendWater() {
+      socket.emit('user-command', '&WP 1');
+    }
+
+    function togglePathMenu() {
+      const menu = document.getElementById('pathMenu');
+      menu.style.display = (menu.style.display === 'none') ? 'block' : 'none';
+    }
+
+    function loadSelectedPath() {
+      const list = document.getElementById('pathList');
+      const filename = list.value;
       if (!filename) {
-        alert("Please enter a filename.");
+        alert("Please select a path file.");
         return;
       }
       socket.emit('user-command', '>load-path ' + filename);
+      document.getElementById('pathMenu').style.display = 'none';
     }
 
-    function sendWater() {
-      socket.emit('user-command', '&WP 1');
+    function onPathPaths(filenames) {
+      const list = document.getElementById('pathList');
+      list.innerHTML = '';  // Clear existing options
+      filenames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        list.appendChild(option);
+      });
     }
 
     window.addEventListener("load", function() {
       initCharts();
       startSocket('path-control', onPathControlData);
       startSocket('path-map', onPathMapData);
+      startSocket('path-paths', onPathPaths);
+      startSocket('motor', onMotorData)
       initJoystick(socket);
     });
   </script>

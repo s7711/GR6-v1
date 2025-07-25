@@ -59,3 +59,13 @@
 -ntrip_mountpoint_OXTS0
 -gateway_address192.168.196.22
 -disable_ptp
+# GAD configuration
+-bns_delay1
+-time_sync_gps_adjust_on
+-gad_on129
+-gad_on132
+-gad_on131
+# Used for wheelspeed 133 - left, 134 - right
+-gad_on133
+-gad_on134
+-aid_wspeed_off
