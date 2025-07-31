@@ -45,7 +45,7 @@ class BgCamera:
 
             with self._cond:
                 self._img = frame
-                self._img_timestamp_ns = metadata.get("Timestamp")  # Nanoseconds from CLOCK_MONOTONIC
+                self._img_timestamp_ns = metadata.get("SensorTimestamp")  # Nanoseconds from CLOCK_MONOTONIC
                 self._img_exposure_us = metadata.get("ExposureTime")  # Microseconds
                 self._img_version += 1
                 self._cond.notify_all()

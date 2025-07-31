@@ -3,6 +3,8 @@
 -x>gps2:B5 62 27 03 00 00 2A A5
 -x>gps1: B5 62 0A 04 00 00 E 34
 -x>gps2: B5 62 0A 04 00 00 E 34
+#Command for ublox to maintain 1PPS during outages - so GAD void works
+-x>gps1: b5 62 06 8a 0c 00 00 01 00 00 04 00 05 40 e8 03 00 00 d1 50
 -vehicle_level
 -low_vibration
 -angacc_filt_disabled
@@ -61,11 +63,9 @@
 -disable_ptp
 # GAD configuration
 -bns_delay1
--time_sync_gps_adjust_on
 -gad_on129
 -gad_on132
 -gad_on131
 # Used for wheelspeed 133 - left, 134 - right
 -gad_on133
 -gad_on134
--aid_wspeed_off

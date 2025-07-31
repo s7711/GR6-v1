@@ -9,7 +9,6 @@ import time
 import numpy as np
 import ncomrx
 import aruco
-import math
 import logging
 import datetime
 import socket
@@ -20,11 +19,43 @@ from config import CFG
 
 # For a rotated camera (i.e. one where the camera z-axis isn't aligned
 # to the xNAV x-axis):
-# c --> Camera axes
-# C --> OxTS-style, but still rotated by H_C, P_C, R_C (camera HPR)
+# C --> Camera axes (X/row 1 points right in the image frame. Y/row 2 points down in the image frame)
+# c --> OxTS-style, but still rotated by H_c, P_c, R_c (camera HPR)
 # b --> OxTS body frame
-# V_b = Rbn(H_C, P_C, R_C) * R_Cc * V_c
-# R_cb = R_cC * R_Cb         # R_cC = R_Cc.T
+# V_b = C_nb(H_c, P_c, R_c) * C_cC * V_C
+
+# Just for explicit clarity (if English allows):
+# C_Cc: Rotation matrix from OxTS-style camera frame ("c") to OpenCV-style camera frame ("C")
+# "c" frame axes (OxTS convention):
+#   - X_c: forward (vehicle direction)
+#   - Y_c: right (right side)
+#   - Z_c: down (toward road)
+# "C" frame axes (OpenCV convention):
+#   - X_C: right in image
+#   - Y_C: down in image
+#   - Z_C: forward (into scene)
+# "b" frame axes (OxTS body frame, or vehicle frame)
+# ... is different to c because the camera might be orientated differently in the vehicle.
+# We could do a transformation straight from "C" to "b", but I find it easier to
+# put H_c, P_c and R_c in the configuration file, and have them with (normally) trivial rotations
+# The GAD update is in the OXTS IMU frame, which is not the same as the body frame, and is
+# defined by mobile.vat n the OXTS configuration files.
+
+# To work out C_bc and C_bi:
+# Start thinking from the "c" or the "i" directions
+#   Rotate through Z - this is the heading, right thumb along Z axis, fingers in positive rotation direction
+#   Rotate through Y - this is the pitch
+#   Rotate through X - this is the roll
+# so that you end up in the "b" frame
+#
+# The full chain of rotations is such that:
+#   C_nb = C_nm * C_mM * C_MC * C_Cc * C_cb
+# where:
+#   C_nm - navigation to marker frame, in the map file as HmPmRm
+#   C_mM - definitions, see axes above
+#   C_MC - (C_CM = Rodrigues()).T from aruco code
+#   C_Cc - definitions, see axes above
+#   C_cb - camera mount in the vehicle
 
 class GadAruco:
     """
@@ -38,18 +69,17 @@ class GadAruco:
         self.cam = None
 
         # Various transfoms
-        self.R_Cc = np.array([[0.0,1.0,0.0], [0.0,0.0,1.0], [1.0,0.0,0.0]]) # oxts-camera to open-cv-camera
-        self.R_Cb = ncomrx.RbnHPR(CFG['HPR_Cb']) # From oxts-camera to oxts-body frame
-        self.R_cb = self.R_Cc.T.dot(self.R_Cb)      # opencv-camera to oxts-body frame
-        self.Db_xc = np.array(CFG['Db_xc']) # xNav to camera displacement, body frame
+        self.C_Cc = np.array([[0.0,1.0,0.0], [0.0,0.0,1.0], [1.0,0.0,0.0]]) # oxts-camera to open-cv-camera
+        self.C_cb = ncomrx.RbnHPR(CFG['HPR_cb'])   # From oxts-body to oxts-camera frame
+        self.C_ib = ncomrx.RbnHPR(CFG['HPR_ib'])   # From oxts-body to oxts-imu (vehicle attitude file)
+        self.Dxc_b = np.array(CFG['Dxc_b'])        # xNav to camera displacement, body frame
 
-        self.ar = aruco.Aruco(R_Cb=self.R_Cb, Db_xc=self.Db_xc, AmBaseLLA=CFG['AmBaseLLA'])     # Aruco decoder
+        self.ar = aruco.Aruco(C_cb=self.C_cb, Dxc_b=self.Dxc_b)     # Aruco decoder
 
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # Socket for sending UDP
 
         self.updateAmGo = True # Can be used to end the aruco marker thread
         self.mapUpdatePeriod = 10 # Seconds between map being sent
-        self.timeUpdatePeriod = 3
         self._am_thread = threading.Thread(target=self.updateAm, daemon=True)
         self._am_thread.start() # Starts decoding and sending images
 
@@ -66,161 +96,107 @@ class GadAruco:
         
         # Map won't be sent every cycle as it could be quite big
         timeToSendMap = time.time()
-        timeToSendInit = time.time() + 3 # Initialise to something
         
         while self.updateAmGo:
-            if self.cam is None or self.nrxs is None:
-                # Wait for the camera and ncom receiver to be set up
-                time.sleep(0.5)
-                continue
+            try:
+                if self.cam is None or self.nrxs is None:
+                    # Wait for the camera and ncom receiver to be set up
+                    time.sleep(0.5)
+                    continue
 
-            # Get the jpg from the camera and find the marker position
-            # mt is machine time of the image
-            # ex is the exposure time of the image
-            jpg, mt, ex = self.cam.img2()
+                # Get the jpg from the camera and find the marker position
+                # mt is machine time of the image
+                # ex is the exposure time of the image
+                jpg, mt, ex = self.cam.img2()
 
-            # Process the image
-            # ams is a list of dictionaries containing all aruco markers
-            # measurements (XYZ, HPR, Lat, Lon, Alt, etc.)
-            ams = self.ar.measureMarker(jpg, nav=self.nrxs.nrx[self.CFG['InsIp']]['decoder'].nav)
-            for am in ams:
-                try:
-                    # Timing - add these to the marker dictionary
-                    # for display on webpage
-                    am['ImageTime'] = mt
-                    am['ExposureTime'] = ex
-                    am['MachineTime'] = time.perf_counter()
-                    nrx = self.nrxs.nrx[self.CFG['InsIp']]['decoder']
-                    imGpsWeek, imGpsSeconds  = nrx.mt2Gps(mt)
-                    am['ImageGpsTime'] =  ncomrx.GPS_STARTTIME + \
-                        datetime.timedelta( minutes=imGpsWeek*10080, seconds=imGpsSeconds )
+                # Process the image
+                # ams is a list of dictionaries containing all aruco markers
+                # measurements (NED, HPR, etc.)
+                ams = self.ar.measureMarker(jpg, nav=self.nrxs.nrx[self.CFG['InsIp']]['decoder'].nav)
+                for am in ams:
+                    try:
+                        # Timing - add these to the marker dictionary
+                        # for display on webpage
+                        am['ImageTime'] = mt
+                        am['ExposureTime'] = ex
+                        am['MachineTime'] = time.monotonic()
+                        nrx = self.nrxs.nrx[self.CFG['InsIp']]['decoder']
+                        imGpsWeek, imGpsSeconds  = nrx.mt2Gps(mt)
+                        am['ImageGpsTime'] =  ncomrx.GPS_STARTTIME + \
+                            datetime.timedelta( minutes=imGpsWeek*10080, seconds=imGpsSeconds )
 
-                    # Note: measurements are in camera co-ordinates Xc, Yc, Zc
-                    # cm used for camera to marker (not centimetres!)
-                    # Camera axes X: right, Y: down, Z: forward                        
-                    # Compute marker position in body frame of xNAV
-                    Dc_cm = np.array([am['AmXc_cm'],am['AmYc_cm'],am['AmZc_cm']]) # Camera to marker, camera frame
-                    Db_xm = self.Db_xc + self.R_cb.dot(Dc_cm)                              # xNAV to marker in xNAV frame
-                    
-                    if 'AmLat' in am:
-                        # Assume that AmLon and AmAlt are also in am
+                        # Note: {XYZ}CM measurements are in camera co-ordinates XC, YC, ZC
+                        # CM used for camera to marker (not centimetres!)
+                        # Camera axes X: right, Y: down, Z: forward                        
+                        # Compute marker position in body/vehicle frame of xNAV
+                        DCM_C = np.array([am['AmXCM_C'],am['AmYCM_C'],am['AmZCM_C']]) # Camera to marker, camera frame
+                        DxM_b = self.Dxc_b + self.C_cb.T @ self.C_Cc.T @ DCM_C        # xNAV to marker in body/vehicle frame
+                        DxM_i = self.C_ib @ DxM_b
+
+                        am['AmXCM_b'] = DxM_b[0]
+                        am['AmYCM_b'] = DxM_b[1]
+                        am['AmZCM_b'] = DxM_b[2]
+                        
+                        # Transform AmN, AmE, AmD to geodetic frame using AmBaseLLA
+                        LLA = ncomrx.NED2LLA(am['AmN'], am['AmE'], am['AmD'], CFG['AmBaseLLA'][0], CFG['AmBaseLLA'][1], CFG['AmBaseLLA'][2])
+
                         # Perform geodetic generic aiding update
                         gp = oxts_sdk.GadPosition(129)
-                        gp.pos_geodetic = [ am['AmLat'], am['AmLon'], am['AmAlt'] ]
-                        # This variance is from the xNAV to the camera
+                        gp.pos_geodetic = [ LLA['Lat'], LLA['Lon'], LLA['Alt']]
+                        # The variance is from the xNAV to the camera
                         # and the marker accuracy
                         # 0.0001 ~ 1cm, though I have probably measured it more accurately than this
                         gp.pos_geodetic_var = [0.001,0.001,0.001,0.0,0.0,0.0] # Note: using 3 terms does not appear to work
+                        #gp.pos_geodetic_var = [0.01,0.01,0.01,0.0,0.0,0.0] # Note: using 3 terms does not appear to work                        
                         # TODO: Needs further work to get timing accurate to ~ 1ms
                         # Currently timing of NCOM is from Ethernet, which has a latency
                         # Timing of the camera is from the GPU when the frame starts arriving
                         # but the image is from an earlier time than this
                         # Needs calibration
                         gp.time_gps = [imGpsWeek, imGpsSeconds]
-                        gp.aiding_lever_arm_fixed = Db_xm
+                        gp.aiding_lever_arm_fixed = DxM_i
                         # Empirical formula for lever arm measurement
                         # At 1m, 3cm is OK
                         # At 2m, 10cm; 3m 30cm; 4m 1m
                         # Use 0.0001 * 10^range
-                        d = np.linalg.norm(Db_xm,2)
+                        d = np.linalg.norm(DxM_i,2)
                         d = np.clip(d,1.0,3.0)
                         a = 0.00001 * 30**d
                         gp.aiding_lever_arm_var = [a,a,a]
                         gh.send_packet(gp)
-                    elif 'AmX' in am:
-                        # Assume that AmY and AmZ are also in am
-                        # Perform local generic aiding update
-                        gp = oxts_sdk.GadPosition(130)
-                        gp.pos_local = [ am['AmX'], am['AmY'], am['AmZ'] ]
-                        # This variance is from the xNAV to the camera
-                        # and the marker accuracy
-                        # 0.0001 ~ 1cm, though I have probably measured it more accurately than this
-                        gp.pos_local_var = [0.001,0.001,0.001,0.0,0.0,0.0] # Note: using 3 terms does not appear to work
-                        # TODO: Needs further work to get timing accurate to ~ 1ms
-                        # Currently timing of NCOM is from Ethernet, which has a latency
-                        # Timing of the camera is from the GPU when the frame starts arriving
-                        # but the image is from an earlier time than this
-                        # Needs calibration
-                        gp.time_gps = [imGpsWeek, imGpsSeconds]
-                        gp.aiding_lever_arm_fixed = Db_xm
-                        # Empirical formula for lever arm measurement
-                        # At 1m, 3cm is OK
-                        # At 2m, 10cm; 3m 30cm; 4m 1m
-                        # Use 0.0001 * 10^range
-                        d = np.linalg.norm(Db_xm,2)
-                        d = np.clip(d,1.0,3.0)
-                        a = 0.00001 * 30**d
-                        gp.aiding_lever_arm_var = [a,a,a]
-                        gh.send_packet(gp)
-                    
-                    # Note: HPR are for R_bn for a camera that is aligned
-                    # with Zc = Xb (forward pointing camera)
-                    # Need to move to the xNAV-body co-ordinates if camera
-                    # is at a different angle
-                    # Euler - > dcm -> rotate by R_Cb -> dcm2Euler
-                    R_MC = ncomrx.RbnHPR(am['AmcHeading'], am['AmcPitch'], am['AmcRoll'])
-                    R_Mb = self.R_Cb.dot(R_MC)
-                    HbPbRb = aruco.dcm2euler(R_Mb)
-                    am['AmbHeading'] = HbPbRb[0] # Heading of body frame of xNAV
-                    am['AmbPitch'] = HbPbRb[1]   # Pitch of body frame of xNAV
-                    am['AmbRoll'] = HbPbRb[2]    # Roll of body frame of xNAV
-                    
-                    ga = oxts_sdk.GadAttitude(131)
-                    ga.att = [ am['AmbHeading'], am['AmbPitch'], am['AmbRoll'] ]           
-                    # Angles from the camera are a mess
-                    # An update once every 10s would be a better option
-                    # 10.0 ~ 3 degrees results in an accuracy that is much
-                    # better than the camera can realistically give         
-                    ga.att_var = [100.0,1000.0,1000.0]
-                    # See comment on timing of position
-                    ga.time_gps = [imGpsWeek, imGpsSeconds]
-                    ga.set_aiding_alignment_optimising()
-                    ga.aiding_alignment_var = [5.0,5.0,5.0]
-                    gh.send_packet(ga)
+                        
+                        ga = oxts_sdk.GadHeading(131)
+                        ga.heading = am['AmHeading_nb']          
+                        ga.heading_var = 100.0 # About 30 degrees, which is fine because update is correlated and frequent
+                        # See comment on timing of position
+                        ga.time_gps = [imGpsWeek, imGpsSeconds]
+                        ga.aiding_alignment_fixed = [0.0, 0.0, 0.0] # C_bc should be used to account for misalignment
+                        ga.aiding_alignment_var = [5.0,5.0,5.0] # Not very aligned
+                        gh.send_packet(ga)
+
+                        # Send marker information to the webpage
+                        if self.ws is not None:
+                            self.ws.send("am-data", am) # Send to web server
+                                                        
+                    except Exception as e:
+                        logging.exception(datetime.datetime.now())
+                
+                # Map for web page, sent occasionally
+                t = time.time()
+                if t > timeToSendMap:
+                    am = {}
+                    am['AmBaseLLA'] = self.CFG['AmBaseLLA']
+                    am['AmMap'] = self.ar.markers
+                    am['AmUnmappedMarkers'] = self.ar.unmappedMarkers
 
                     # Send marker information to the webpage
                     if self.ws is not None:
-                        self.ws.send("am-data", am) # Send to web server
-                
-                    if( nrx.status['NavStatus'] == 2
-                    and t > timeToSendInit ):
-                        # Need to initialise
-                        # TODO: Offset from the marker needs to be included
-                        # Shouldn't use the marker's position!
-                        # TODO: Use AmX, Amy, AmZ XY map being used
-                        message = f"!set init aidpos {am['AmLat']} {am['AmLon']} {am['AmAlt']}"
-                        logging.info(message)
-                        self.sock.sendto(bytes(message+"\n", "utf-8"), (self.CFG['InsIp'],3001))
-                        
-                        # TODO: This assumes INS is stationary. Make work
-                        # for moving INSs
-                        message = f"!set init aidvel 0 0 0"
-                        logging.info(message)
-                        self.sock.sendto(bytes(message+"\n", "utf-8"), (self.CFG['InsIp'],3001))
-                        
-                        message = f"!set init hea {am['AmbHeading']:.1f}"
-                        logging.info(message)
-                        self.sock.sendto(bytes(message+"\n", "utf-8"), (self.CFG['InsIp'],3001))
-                        
-                        timeToSendInit = t + self.timeUpdatePeriod
-                        
-                            
-                except Exception as e:
-                    logging.exception(datetime.datetime.now())
-            
-            # Map for web page, sent occasionally
-            t = time.time()
-            if t > timeToSendMap:
-                am = {}
-                am['AmBaseLLA'] = self.CFG['AmBaseLLA']
-                am['AmMap'] = self.ar.markers
-                am['AmUnmappedMarkers'] = self.ar.unmappedMarkers
-
-                # Send marker information to the webpage
-                if self.ws is not None:
-                    self.ws.send("am-data", am) # Send to web server            
-                
-                timeToSendMap = t + self.mapUpdatePeriod
+                        self.ws.send("am-data", am) # Send to web server            
+                    
+                    timeToSendMap = t + self.mapUpdatePeriod
+            except:
+                logging.exception("[gad_aruco]: Exception in loop")
+                time.sleep(5.0) # Pause loop: a common problem is that the INS is not yet active
 
 
 # Additional calculations for ncomrx

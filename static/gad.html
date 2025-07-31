@@ -85,21 +85,21 @@
       <thead> <tr> <th>Measurement</th>  <th>Value</th> <th>Units</th> </tr></thead>
         <tr> <td>GpsTime</td>          <td id="ms_GpsTime">---</td> <td></td> </tr>
         <tr> <td>Gws Gps Time</td>      <td id="ms_GwsGpsTime">---</td> <td></td> </tr>
-        <tr> <td>Image Gps time</td>   <td id="mi_ImageGpsTime">---</td> <td>s</td> </tr>
+        <tr> <td>Image Gps time</td>   <td id="ms_ImageGpsTime">---</td> <td>s</td> </tr>
         <tr> <td>Exposure time</td>    <td id="mf3_ExposureTime">---</td> <td>s</td> </tr>
         <tr> <td>AmLocalN</td>         <td id="mf3_AmLocalN">---</td> <td>m</td> </tr>
         <tr> <td>AmLocalE</td>         <td id="mf3_AmLocalE">---</td> <td>m</td> </tr>
         <tr> <td>AmLocalD</td>         <td id="mf3_AmLocalD">---</td> <td>m</td> </tr>      
         <tr> <td>Marker Id</td>        <td id="mi_AmId">---<td></td></td></tr>
-        <tr> <td>Am Xc</td>            <td id="mf3_AmXc_cm">---</td> <td>m</td> </tr>
-        <tr> <td>Am Yc</td>            <td id="mf3_AmYc_cm">---</td> <td>m</td> </tr>
-        <tr> <td>Am Zc</td>            <td id="mf3_AmZc_cm">---</td> <td>m</td> </tr>
-        <tr> <td>Amb Heading</td>      <td id="mf3_AmbHeading">---</td> <td>degrees</td> </tr>
-        <tr> <td>Amb Pitch</td>        <td id="mf3_AmbPitch">---</td> <td>degrees</td> </tr>
-        <tr> <td>Amb Roll</td>         <td id="mf3_AmbRoll">---</td> <td>degrees</td> </tr>
-        <tr> <td>Amc Heading</td>      <td id="mf3_AmcHeading">---</td> <td>degrees</td> </tr>
-        <tr> <td>Amc Pitch</td>        <td id="mf3_AmcPitch">---</td> <td>degrees</td> </tr>
-        <tr> <td>Amc Roll</td>         <td id="mf3_AmcRoll">---</td> <td>degrees</td> </tr>
+        <tr> <td>Am XCM_C</td>         <td id="mf3_AmXCM_C">---</td> <td>m</td> </tr>
+        <tr> <td>Am YCM_C</td>         <td id="mf3_AmYCM_C">---</td> <td>m</td> </tr>
+        <tr> <td>Am ZCM_C</td>         <td id="mf3_AmZCM_C">---</td> <td>m</td> </tr>
+        <tr> <td>Am XCM_b</td>         <td id="mf3_AmXCM_b">---</td> <td>m</td> </tr>
+        <tr> <td>Am YCM_b</td>         <td id="mf3_AmYCM_b">---</td> <td>m</td> </tr>
+        <tr> <td>Am ZCM_b</td>         <td id="mf3_AmZCM_b">---</td> <td>m</td> </tr>
+        <tr> <td>Am Heading_nb</td>    <td id="mf3_AmHeading_nb">---</td> <td>degrees</td> </tr>
+        <tr> <td>Am Pitch_nb</td>      <td id="mf3_AmPitch_nb">---</td> <td>degrees</td> </tr>
+        <tr> <td>Am Roll_nb</td>       <td id="mf3_AmRoll_nb">---</td> <td>degrees</td> </tr>
         <tr> <td>Am Heading</td>       <td id="mf3_AmHeading">---</td> <td>degrees</td> </tr>
         <tr> <td>Am Pitch</td>         <td id="mf3_AmPitch">---</td> <td>degrees</td> </tr>
         <tr> <td>Am Roll</td>          <td id="mf3_AmRoll">---</td> <td>degrees</td> </tr>
@@ -141,11 +141,50 @@
               { order:3, pointRadius: 3,  pointBackgroundColor: "rgb(200,200,200)", data: [] }, // dataset[3] used for unmapped markers},
             ] },
             options: {
-              plugins: {legend: {display: false}}, animation: false, scales: { x: { min: -20.0, max: 20.0 }, y: { min: -10.0, max: 10.0 } },
-              responsive: false,
-              maintainAspectRatio: false }
-        });        
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      const point = context.raw;
+                      return point.label || `(${point.x}, ${point.y})`;
+                    }
+                  }
+                }
+              },
+              animation: false,
+              scales: {
+                x: { min: -20.0, max: 20.0 },
+                y: { min: -10.0, max: 10.0 }
+              },
+              responsive: true,
+              maintainAspectRatio: false
+            }})
       }
+
+      function updateXYBounds(centerX, centerY, range = 10) {
+        const chartWidth = chart.width;
+        const chartHeight = chart.height;
+        const aspectRatio = chartWidth / chartHeight;
+
+        let xRange, yRange;
+
+        if (aspectRatio >= 1) {
+          // Wider than tall: x needs to be scaled up
+          yRange = range;
+          xRange = range * aspectRatio;
+        } else {
+          // Taller than wide: y needs to be scaled up
+          xRange = range;
+          yRange = range / aspectRatio;
+        }
+
+        chart.options.scales.x.min = centerX - xRange / 2;
+        chart.options.scales.x.max = centerX + xRange / 2;
+        chart.options.scales.y.min = centerY - yRange / 2;
+        chart.options.scales.y.max = centerY + yRange / 2;
+      }
+
       
       window.addEventListener("load", function () {
         initChart();
@@ -161,6 +200,7 @@
           chart.data.datasets[0].data.push({ x: data.AmLocalE, y: data.AmLocalN });
           if (chart.data.datasets[0].data.length > 200) chart.data.datasets[0].data.shift();
           chart.data.datasets[2].data[0] = { x: data.AmLocalE, y: data.AmLocalN };
+          updateXYBounds(data.AmLocalE, data.AmLocalN);
           chart.update();
 
           // Don't worry if these are undefined, everything is forgiving
@@ -191,8 +231,9 @@
 
           if ('AmMap' in data) {
             const markers = Object.values(data.AmMap).map(marker => ({
-              x: marker.AmX,
-              y: marker.AmY
+              x: marker.AmE,
+              y: marker.AmN,
+              label: Object.entries(marker).map(([key, value]) => `${key}: ${typeof value === 'number' ? value.toFixed(3) : value}`),
             }));
             chart.data.datasets[1].data = markers;
             chart.update();
@@ -200,8 +241,9 @@
 
           if ('AmUnmappedMarkers' in data) {
             const unmarked = Object.values(data.AmUnmappedMarkers).map(marker => ({
-              x: marker.AmX,
-              y: marker.AmY
+              x: marker.AmE,
+              y: marker.AmN,
+              label: Object.entries(marker).map(([key, value]) => `${key}: ${typeof value === 'number' ? value.toFixed(3) : value}`),
             }));
             chart.data.datasets[3].data = unmarked;
             chart.update();
@@ -264,7 +306,7 @@
         if( inn < 0.0 ) inn = -inn; // Filtered innovations should already be +ve
         if( inn > 100.0 ) inn = 100.0;
         document.getElementById(el).style="height:"+inn+"%";
-      }        
+      } 
     </script>
   </body>
 </html>
