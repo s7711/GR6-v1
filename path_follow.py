@@ -30,7 +30,7 @@ import json
 import os
 
 # Control parameters
-LOOKAHEAD_DISTANCE = 1.0  # metres
+LOOKAHEAD_DISTANCE = 0.4  # metres
 HEADING_GAIN = 2.0        # gain for heading correction
 CTE_GAIN = 0.2            # Cross track error gain
 WHEEL_BASE = 0.42         # metres between wheel centers
@@ -38,9 +38,9 @@ MAX_MOTOR = 200
 SCALE = 100 / 0.6         # motor units per m/s (based on 0.6 m/s ≈ 100)
 
 # Abort parameters
-MAX_LINE_DEPARTURE = 0.4  # metre
-MAX_HEADING_CORRECTION = 50 * math.pi / 180.0
-MAX_LOCALISATION_ERROR = 0.2 # metres RMS
+MAX_LINE_DEPARTURE = 0.4  # metres
+MAX_HEADING_CORRECTION = 70 * math.pi / 180.0
+MAX_LOCALISATION_ERROR = 1.0 # metres RMS
 
 
 class PathFollow:

@@ -111,7 +111,7 @@
         type: 'scatter',
         data: {
           datasets: [
-            { label: 'Path', data: [], borderColor: 'gray', showLine: true, pointRadius: 0 },
+            { label: 'Path', data: [], borderColor: 'gray', showLine: true, pointRadius: 2 },
             { label: 'Trail', data: [], pointRadius: 4, pointBackgroundColor: "rgb(202,24,28)" },
             { label: 'Current', data: [], pointRadius: 16, pointStyle: "cross", borderColor: "rgb(0,0,0)", borderWidth: 2, },
             { label: 'Lookahead', data: [], backgroundColor: 'green', pointRadius: 5 },
@@ -224,6 +224,9 @@
       chartMotor.data.datasets[3].data.push({ x: t, y: data.outRM });
 
       if (chartMotor.data.datasets[0].data.length > MAX_POINTS) chartMotor.data.datasets[0].data.shift();
+      if (chartMotor.data.datasets[1].data.length > MAX_POINTS) chartMotor.data.datasets[1].data.shift();
+      if (chartMotor.data.datasets[2].data.length > MAX_POINTS) chartMotor.data.datasets[2].data.shift();
+      if (chartMotor.data.datasets[3].data.length > MAX_POINTS) chartMotor.data.datasets[3].data.shift();
 
       chartMotor.update('none');
     }

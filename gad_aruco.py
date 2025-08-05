@@ -11,7 +11,6 @@ import ncomrx
 import aruco
 import logging
 import datetime
-import socket
 from config import CFG
 
 # Definitions for where the camera is and how it is orientated compared
@@ -76,10 +75,9 @@ class GadAruco:
 
         self.ar = aruco.Aruco(C_cb=self.C_cb, Dxc_b=self.Dxc_b)     # Aruco decoder
 
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) # Socket for sending UDP
-
         self.updateAmGo = True # Can be used to end the aruco marker thread
         self.mapUpdatePeriod = 10 # Seconds between map being sent
+        self.gad_heading = 'heading'
         self._am_thread = threading.Thread(target=self.updateAm, daemon=True)
         self._am_thread.start() # Starts decoding and sending images
 
@@ -147,7 +145,6 @@ class GadAruco:
                         # and the marker accuracy
                         # 0.0001 ~ 1cm, though I have probably measured it more accurately than this
                         gp.pos_geodetic_var = [0.001,0.001,0.001,0.0,0.0,0.0] # Note: using 3 terms does not appear to work
-                        #gp.pos_geodetic_var = [0.01,0.01,0.01,0.0,0.0,0.0] # Note: using 3 terms does not appear to work                        
                         # TODO: Needs further work to get timing accurate to ~ 1ms
                         # Currently timing of NCOM is from Ethernet, which has a latency
                         # Timing of the camera is from the GPU when the frame starts arriving
@@ -165,14 +162,43 @@ class GadAruco:
                         gp.aiding_lever_arm_var = [a,a,a]
                         gh.send_packet(gp)
                         
-                        ga = oxts_sdk.GadHeading(131)
-                        ga.heading = am['AmHeading_nb']          
-                        ga.heading_var = 100.0 # About 30 degrees, which is fine because update is correlated and frequent
-                        # See comment on timing of position
-                        ga.time_gps = [imGpsWeek, imGpsSeconds]
-                        ga.aiding_alignment_fixed = [0.0, 0.0, 0.0] # C_bc should be used to account for misalignment
-                        ga.aiding_alignment_var = [5.0,5.0,5.0] # Not very aligned
-                        gh.send_packet(ga)
+                        if self.gad_heading == 'heading':
+                            # This works but, without an innovation output, it is hard to see it working
+                            # Also, with heading lock active, it is virtually impossible to notice it working
+                            ga = oxts_sdk.GadHeading(131)
+                            ga.heading = am['AmHeading_nb']          
+                            ga.heading_var = 100.0 # About 10 degrees, which is fine because update is correlated and frequent
+                            # See comment on timing of position
+                            ga.time_gps = [imGpsWeek, imGpsSeconds]
+                            ga.aiding_alignment_fixed = CFG["HPR_ib"]
+                            ga.aiding_alignment_var = [5.0,5.0,5.0] # Not very aligned
+                            gh.send_packet(ga)
+                        elif self.gad_heading == 'orientation':
+                            # I have been unable to get this to work correctly
+                            ga = oxts_sdk.GadAttitude(131)
+                            ga.att = [ am['AmHeading_nb'], am['AmPitch_nb'], am['AmRoll_nb'] ]                   
+                            ga.att_var = [100.0,1000.0,1000.0]
+                            # See comment on timing of position
+                            ga.time_gps = [imGpsWeek, imGpsSeconds]
+                            ga.aiding_alignment_fixed = CFG["HPR_ib"]
+                            ga.aiding_alignment_var = [5.0,5.0,5.0]
+                            gh.send_packet(ga)
+
+                        elif self.gad_heading == 'orientation2':
+                            # I have been unable to get this to work correctly
+                            ga = oxts_sdk.GadAttitude(131)
+                            C_nb = ncomrx.RbnHPR((am['AmHeading_nb'], am['AmPitch_nb'], am['AmRoll_nb']))
+                            C_ni = C_nb @ self.C_ib.T
+                            HPR_i = aruco.dcm2euler(C_ni)
+                            ga.att = [ HPR_i[0], HPR_i[1], HPR_i[2] ]
+                            Var_i = self.C_ib @ np.diag([100.0,1000.0,1000.0]) @ self.C_ib.T           
+                            print(HPR_i, [Var_i[0][0], Var_i[1][1], Var_i[2][2]])
+                            ga.att_var = [Var_i[0][0], Var_i[1][1], Var_i[2][2]]
+                            # See comment on timing of position
+                            ga.time_gps = [imGpsWeek, imGpsSeconds]
+                            ga.aiding_alignment_fixed = [0.0, 0.0, 0.0]
+                            ga.aiding_alignment_var = [5.0,5.0,5.0]
+                            gh.send_packet(ga)
 
                         # Send marker information to the webpage
                         if self.ws is not None:
@@ -197,6 +223,18 @@ class GadAruco:
             except:
                 logging.exception("[gad_aruco]: Exception in loop")
                 time.sleep(5.0) # Pause loop: a common problem is that the INS is not yet active
+
+    def user_command(self, message):
+        if message == "{gad heading":
+            self.gad_heading = 'heading'
+        elif message == "{gad orientation":
+            self.gad_heading = 'orientation'
+        elif message == "{gad orientation2":
+            self.gad_heading = 'orientation2'
+        elif message == "{show_rejected":
+            self.ar.show_rejected = True
+        elif message == "{hide_rejected":
+            self.ar.show_rejected = False
 
 
 # Additional calculations for ncomrx

@@ -359,8 +359,8 @@ class NcomRx:
         self._updateInnovation( 'InnVelX', statusBytes[3:4] )
         self._updateInnovation( 'InnVelY', statusBytes[4:5] )
         self._updateInnovation( 'InnVelZ', statusBytes[5:6] )
-        self._updateInnovation( 'InnHeading', statusBytes[6:7] )
-        self._updateInnovation( 'InnPitch', statusBytes[7:8] )
+        self._updateInnovation( 'InnPitch', statusBytes[6:7] )
+        self._updateInnovation( 'InnHeading', statusBytes[7:8] )
 
 
     def _updateInnovation(self, k, b ):

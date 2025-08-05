@@ -27,6 +27,7 @@ class BgCamera:
             main={"format": "RGB888", "size": (640, 480)} )
         self.picam.configure(self.config)
         self.picam.start()
+        self.picam.set_controls({"ExposureValue": 0.7}) 
         self._cond = threading.Condition()
         self._img = None
         self._img_version = 0 # Used to fix wait() issues

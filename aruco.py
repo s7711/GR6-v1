@@ -138,6 +138,8 @@ class Aruco:
         
         # Method of stopping the processing and terminating the thread
         self.go = True
+
+        self.show_rejected = False
         
         # Load the mapfile
         # markers is a dictionary of the markers where the key is the
@@ -271,7 +273,8 @@ class Aruco:
                         C_MC = cv2.Rodrigues(r)[0].T
                         # self.C_Cc static and defined above
                         # self.C_cb configured by user
-                        HPR = dcm2euler(C_nm @ self.C_mM @ C_MC @ self.C_Cc @ self.C_cb)                       
+                        C_nb = C_nm @ self.C_mM @ C_MC @ self.C_Cc @ self.C_cb
+                        HPR = dcm2euler(C_nb)                       
                         am = m.copy()
                         am.update( {
                             # CM used for camera to marker (not centimetres!)
@@ -314,6 +317,18 @@ class Aruco:
                         except:
                             pass # If nav not initialised then quietly go on
             
+            if self.show_rejected:
+                for candidate in rejectedCandidates:
+                    corners = candidate.reshape(-1, 2)  # 4x2 array
+                    center = np.mean(corners, axis=0).astype(int)
+
+                    # Compute radius as the max distance from center to any corner
+                    distances = np.linalg.norm(corners - center, axis=1)
+                    radius = int(np.max(distances))
+
+                    # Draw the circle
+                    cv2.circle(img, tuple(center), radius, color=(0, 255, 255), thickness=1)  # yellow circle
+
             # Notify anything that is using this as a camera
             with self.cam_condition:
                 self.cam_frames.append(img)
@@ -352,7 +367,7 @@ def dcm2euler(dcm):
         pitch = -math.pi/2.0
     else:
         pitch = math.asin(-dcm[2][0])
-
+    
     # Compute the cosine of pitch angle from dcm
     cos_ph2 = dcm[0][0] * dcm[0][0] + dcm[1][0] * dcm[1][0]
     cos_pr2 = dcm[2][1] * dcm[2][1] + dcm[2][2] * dcm[2][2]

@@ -42,12 +42,12 @@
   ],
   "MapResolution": 0.1,
   "MapSizeMeters": 120.0,
-  "WheelPosLeft": [
+  "Imu2LeftWheel_i": [
     -0.203,
     0.062,
     0.084
   ],
-  "WheelPosRight": [
+  "Imu2RightWheel_i": [
     0.208,
     0.062,
     0.084

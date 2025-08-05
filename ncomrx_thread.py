@@ -27,6 +27,7 @@ import ncomrx
 import collections
 import binascii
 import threading
+import logging
 
 
 class NcomRxThread(threading.Thread):
@@ -54,7 +55,8 @@ class NcomRxThread(threading.Thread):
                 # Then create a new crclist and decoder in nrx
                 self.nrx[addr] = {
                     'crcList': collections.deque(maxlen=200),
-                    'decoder': ncomrx.NcomRx()
+                    'decoder': ncomrx.NcomRx(),
+                    'logfile': None
                     }
                 self.nrx[addr]['decoder'].moreCalcs = self.moreCalcs
                 # Add IP address to connection, useful for user
@@ -71,8 +73,64 @@ class NcomRxThread(threading.Thread):
                 # And process all possible data
                 while self.nrx[addr]['decoder'].decode(b'', machineTime=myTime):
                     pass
+                # Check if a log file is currently open for this IP address
+                if self.nrx[addr]['logfile'] is not None:
+                    # Write the raw UDP packet's binary data to the file
+                    self.nrx[addr]['logfile'].write(nb)
+                    if 'loggedBytes' in self.nrx[addr]['decoder'].connection:
+                        self.nrx[addr]['decoder'].connection['loggedBytes'] += len(nb)
+                    else:
+                        self.nrx[addr]['decoder'].connection['loggedBytes'] = len(nb)
+
             else:
                 self.nrx[addr]['decoder'].connection['repeatedUdp'] += 1
                                         
     def stop(self):
         self.keepGoing = False
+
+    def user_command(self, message):
+        # Commands:
+        #  :logging on [ip]
+        #  :logging off [ip]
+        if message.startswith(":logging"):
+            args = message.split()
+
+            # Check that the command has enough arguments
+            if len(args) < 3:
+                logging.warning("[NcomRxThread]: Invalid logging command format.")
+                return
+
+            # Check that the ip address is being received
+            ip_address = args[2]
+            if ip_address not in self.nrx:
+                logging.warning(f"[NcomRxThread]: IP address {ip_address} not being received.")
+                return
+
+            command = args[1]
+            logfile_info = self.nrx[ip_address]
+
+            if command == "off":
+                # Check if a file is actually open before trying to close it
+                fp = logfile_info.get('logfile')
+                if fp is not None:
+                    logging.info(f"Closing log file for {ip_address}.")
+                    logfile_info['logfile'] = None
+                    fp.close()
+                else:
+                    logging.warning(f"No log file open for {ip_address}.")
+
+            elif command == "on":
+                # Check if a file is already open for this IP
+                if logfile_info.get('logfile') is not None:
+                    logging.warning(f"Log file already open for {ip_address}. Ignoring 'on' command.")
+                    return
+                
+                try:
+                    filename = f"{ip_address}.ncom"
+                    # Open the file in binary write mode
+                    fp = open(filename, "wb")
+                    logfile_info['decoder'].connection['loggedBytes'] = 0
+                    logfile_info['logfile'] = fp
+                    logging.info(f"Opened log file {filename} for {ip_address}.")
+                except IOError as e:
+                    logging.error(f"Failed to open log file for {ip_address}: {e}")

@@ -26,6 +26,11 @@ import queue
 import re
 import time
 import config
+import os
+
+# Directory for xnav_configuruation - usedby editor webpage
+# TODO: add it to the upload and download functions
+CONFIG_DIR = './static/xnav-config'
 
 class WebServer:
     def __init__(self, port=8000):
@@ -37,6 +42,8 @@ class WebServer:
         # Flask routes
         self.app.add_url_rule("/", "index", self.index)
         self.app.add_url_rule("/camera.mjpg", "camera_feed", self.camera_feed)
+        self.app.add_url_rule('/get-config/<filename>', view_func=self.get_config)
+        self.app.add_url_rule('/save-config/<filename>', view_func=self.save_config, methods=['POST'])
 
         # WebSocket events
         self.socketio.on_event("connect", self.on_connect)
@@ -90,7 +97,7 @@ class WebServer:
             logging.error(f"Error sending WebSocket event '{data_type}': {e}")
 
     def handle_user_command(self,data,event):
-        """Receive command from web page and enqueue it."""
+        """Receive command from web page and queue it."""
         try:
             self.recv_queue.put((event, data), block=False)
         except queue.Full:
@@ -114,6 +121,22 @@ class WebServer:
 
     def _run(self):
         self.socketio.run(self.app, host="0.0.0.0", port=self.port, debug=False)
+
+    # Functions for loading and saving files
+    def get_config(self, filename):
+        path = os.path.join(CONFIG_DIR, filename)
+        if os.path.isfile(path):
+            with open(path, 'r') as f:
+                content = f.read()
+            return flask.jsonify({'content': content})
+        return flask.jsonify({'error': 'File not found'}), 404
+
+    def save_config(self, filename):
+        path = os.path.join(CONFIG_DIR, filename)
+        data = flask.request.json.get('content', '')
+        with open(path, 'w') as f:
+            f.write(data)
+        return flask.jsonify({'status': 'success'})
 
 # Logging handler captures logging messages and sends them to the WebSocket clients
 # There's a queue so previous messages are sent when a client connects

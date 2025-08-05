@@ -113,6 +113,12 @@ try:
             config.user_command(message)
         elif message.startswith('>'):
             pf.user_command(message)
+        elif message.startswith('<'):
+            gw.user_command(message)
+        elif message.startswith(':'):
+            xn.nrxs.user_command(message)
+        elif message.startswith("{"):
+            ga.user_command(message)
 
 except KeyboardInterrupt as e:
     print('Stopping')

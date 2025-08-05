@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Config Editor</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: sans-serif;
+    }
+
+    #controls {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      background-color: #f0f0f0;
+      gap: 10px;
+    }
+
+    #editor {
+      width: 100%;
+      height: calc(100% - 50px); /* Adjust height based on controls bar */
+      box-sizing: border-box;
+      padding: 10px;
+      font-family: monospace;
+      font-size: 14px;
+      border: none;
+      resize: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <select id="fileSelector">
+      <option value="" disabled selected>Select file...</option>
+      <option value="mobile.cfg.txt">mobile.cfg.txt</option>
+      <option value="mobile.vat.txt">mobile.vat.txt</option>
+    </select>
+
+    <button onclick="saveFile()">Save</button>
+    <button onclick="uploadToXnav()">Upload to xnav</button>
+  </div>
+
+  <textarea id="editor" placeholder="File content will appear here..."></textarea>
+
+  <script>
+    const editor = document.getElementById('editor');
+    const selector = document.getElementById('fileSelector');
+    const socket = io();
+
+    function loadFile() {
+      const filename = selector.value;
+      if (!filename) {
+        editor.value = '';
+        return;
+      }
+
+      fetch(`/get-config/${filename}`)
+        .then(res => res.json())
+        .then(data => editor.value = data.content || '');
+    }
+
+    function saveFile() {
+      const filename = selector.value;
+      if (!filename) {
+        alert('Please select a file first.');
+        return;
+      }
+
+      fetch(`/save-config/${filename}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({content: editor.value})
+      }).then(res => res.json())
+        .then(data => alert('Saved!'));
+    }
+
+    function uploadToXnav() {
+      socket.emit('user-command', '!upload');
+    }
+
+    selector.addEventListener('change', loadFile);
+  </script>
+</body>
+</html>
