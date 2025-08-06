@@ -133,6 +133,18 @@ class GadFake:
                                 gadPkts["ga"] = ga
                             elif args[1] == 'stop':
                                 del gadPkts["ga"]
+
+                        elif args[0] == '#att2':
+                            if len(args) == 4:
+                                ga = oxts_sdk.GadAttitude(131)
+                                ga.att = [ float(v) for v in args[1:4] ]                    
+                                ga.att_var = [10.0,10.0,10.0]
+                                ga.set_time_void()
+                                ga.aiding_alignment_fixed = [0.0, 0.0, 0.0]
+                                ga.aiding_alignment_var = [5.0,5.0,5.0]
+                                gadPkts["ga"] = ga
+                            elif args[1] == 'stop':
+                                del gadPkts["ga"]
                         
                     except Exception as e:
                         # Note this will show an error if "stop" is sent

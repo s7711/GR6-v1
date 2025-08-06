@@ -163,8 +163,7 @@ class GadAruco:
                         gh.send_packet(gp)
                         
                         if self.gad_heading == 'heading':
-                            # This works but, without an innovation output, it is hard to see it working
-                            # Also, with heading lock active, it is virtually impossible to notice it working
+                            # With heading lock active, it is virtually impossible to notice it working
                             ga = oxts_sdk.GadHeading(131)
                             ga.heading = am['AmHeading_nb']          
                             ga.heading_var = 100.0 # About 10 degrees, which is fine because update is correlated and frequent
@@ -177,11 +176,12 @@ class GadAruco:
                             # I have been unable to get this to work correctly
                             ga = oxts_sdk.GadAttitude(131)
                             ga.att = [ am['AmHeading_nb'], am['AmPitch_nb'], am['AmRoll_nb'] ]                   
-                            ga.att_var = [100.0,1000.0,1000.0]
+                            ga.att_var = [1.0,10.0,10.0]
                             # See comment on timing of position
                             ga.time_gps = [imGpsWeek, imGpsSeconds]
+                            # ga.set_time_void() # Note: this does work with time_void(). No idea why.
                             ga.aiding_alignment_fixed = CFG["HPR_ib"]
-                            ga.aiding_alignment_var = [5.0,5.0,5.0]
+                            ga.aiding_alignment_var = [1.0,1.0,1.0]
                             gh.send_packet(ga)
 
                         elif self.gad_heading == 'orientation2':
@@ -191,13 +191,36 @@ class GadAruco:
                             C_ni = C_nb @ self.C_ib.T
                             HPR_i = aruco.dcm2euler(C_ni)
                             ga.att = [ HPR_i[0], HPR_i[1], HPR_i[2] ]
-                            Var_i = self.C_ib @ np.diag([100.0,1000.0,1000.0]) @ self.C_ib.T           
-                            print(HPR_i, [Var_i[0][0], Var_i[1][1], Var_i[2][2]])
+                            #ga.att = [256.1,0.2,-88.5]
+                            Var_i = self.C_ib.T @ np.diag([1.0,10.0,10.0]) @ self.C_ib
+                            np.set_printoptions(precision=1, suppress=True)        
+                            print(np.array(HPR_i), [Var_i[0][0], Var_i[1][1], Var_i[2][2]])
                             ga.att_var = [Var_i[0][0], Var_i[1][1], Var_i[2][2]]
+                            #ga.att_var = [1000.0,1000.0,100.0]
+                            # See comment on timing of position
+                            #ga.time_gps = [imGpsWeek, imGpsSeconds]
+                            ga.set_time_void()
+                            ga.aiding_alignment_fixed = [0.0, 0.0, 0.0]
+                            ga.aiding_alignment_var = [1.0,1.0,1.0]
+                            gh.send_packet(ga)
+                        elif self.gad_heading == 'orientation3':
+                            # I have been unable to get this to work correctly
+                            ga = oxts_sdk.GadAttitude(131)
+                            C_nb = ncomrx.RbnHPR((am['AmHeading_nb'], am['AmPitch_nb'], am['AmRoll_nb']))
+                            C_ni = C_nb @ self.C_ib.T
+                            HPR_i = aruco.dcm2euler(C_ni)
+                            ga.att = [ HPR_i[0], HPR_i[1], HPR_i[2] ]
+                            #ga.att = [256.1,0.2,-88.5]
+                            Var_i = self.C_ib.T @ np.diag([1.0,10.0,10.0]) @ self.C_ib
+                            np.set_printoptions(precision=1, suppress=True)        
+                            print(np.array(HPR_i), [Var_i[0][0], Var_i[1][1], Var_i[2][2]])
+                            ga.att_var = [Var_i[0][0], Var_i[1][1], Var_i[2][2]]
+                            #ga.att_var = [1000.0,1000.0,100.0]
                             # See comment on timing of position
                             ga.time_gps = [imGpsWeek, imGpsSeconds]
+                            #ga.set_time_void()
                             ga.aiding_alignment_fixed = [0.0, 0.0, 0.0]
-                            ga.aiding_alignment_var = [5.0,5.0,5.0]
+                            ga.aiding_alignment_var = [1.0,1.0,1.0]
                             gh.send_packet(ga)
 
                         # Send marker information to the webpage
@@ -231,6 +254,8 @@ class GadAruco:
             self.gad_heading = 'orientation'
         elif message == "{gad orientation2":
             self.gad_heading = 'orientation2'
+        elif message == "{gad orientation3":
+            self.gad_heading = 'orientation3'
         elif message == "{show_rejected":
             self.ar.show_rejected = True
         elif message == "{hide_rejected":

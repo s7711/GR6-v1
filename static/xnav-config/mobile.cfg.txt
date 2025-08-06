@@ -4,7 +4,9 @@
 -x>gps1: B5 62 0A 04 00 00 E 34
 -x>gps2: B5 62 0A 04 00 00 E 34
 #Command for ublox to maintain 1PPS during outages - so GAD void works
--x>gps1: b5 62 06 8a 0c 00 00 01 00 00 04 00 05 40 e8 03 00 00 d1 50
+#-x>gps1: b5 62 06 8a 0c 00 00 01 00 00 04 00 05 40 e8 03 00 00 d1 50
+-xbns_ccom_timestamping
+
 -vehicle_level
 -low_vibration
 -angacc_filt_disabled
@@ -29,8 +31,8 @@
 -diff_format_rtcm
 -diff_to_gps1_on
 -high_accuracy
--headlock5.000000_10.000000
--headlock_angle0.500000
+#-headlock5.000000_10.000000
+#-headlock_angle0.500000
 -stat_delay5.000000
 -stat_speed1.000000
 -motion_speed1.000000
