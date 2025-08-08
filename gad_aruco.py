@@ -193,8 +193,6 @@ class GadAruco:
                             ga.att = [ HPR_i[0], HPR_i[1], HPR_i[2] ]
                             #ga.att = [256.1,0.2,-88.5]
                             Var_i = self.C_ib.T @ np.diag([1.0,10.0,10.0]) @ self.C_ib
-                            np.set_printoptions(precision=1, suppress=True)        
-                            print(np.array(HPR_i), [Var_i[0][0], Var_i[1][1], Var_i[2][2]])
                             ga.att_var = [Var_i[0][0], Var_i[1][1], Var_i[2][2]]
                             #ga.att_var = [1000.0,1000.0,100.0]
                             # See comment on timing of position
@@ -212,8 +210,6 @@ class GadAruco:
                             ga.att = [ HPR_i[0], HPR_i[1], HPR_i[2] ]
                             #ga.att = [256.1,0.2,-88.5]
                             Var_i = self.C_ib.T @ np.diag([1.0,10.0,10.0]) @ self.C_ib
-                            np.set_printoptions(precision=1, suppress=True)        
-                            print(np.array(HPR_i), [Var_i[0][0], Var_i[1][1], Var_i[2][2]])
                             ga.att_var = [Var_i[0][0], Var_i[1][1], Var_i[2][2]]
                             #ga.att_var = [1000.0,1000.0,100.0]
                             # See comment on timing of position

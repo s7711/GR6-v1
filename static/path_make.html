@@ -108,11 +108,7 @@
       const y = parseFloat(document.getElementById('mf2_CurrentY').textContent);
       const speed = parseFloat(document.getElementById('waypointSpeed').value) || 0.5;
 
-      if (isNaN(x) || isNaN(y)) {
-        alert("Current position not available.");
-        return;
-      }
-
+      if (isNaN(x) || isNaN(y)) return;
       path.push([x, y, speed]);
       updateChart();
     }
