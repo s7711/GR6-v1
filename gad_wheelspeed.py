@@ -100,7 +100,8 @@ class GadWheelspeed:
                 gv_left = oxts_sdk.GadVelocity(self.stream_id_left)
                 V_i =  self.C_ib @ np.array([left_velocity, 0.0, 0.0])
                 gv_left.vel_odom = V_i.tolist()
-                Var_i = self.C_ib @ np.diag([self.wheelspeed_var, 1.0, 1.0]) @ self.C_ib.T
+                #Var_i = self.C_ib @ np.diag([self.wheelspeed_var, 1.0, 1.0]) @ self.C_ib.T
+                Var_i = self.C_ib @ np.diag([0.01, 0.01, 0.01]) @ self.C_ib.T
                 gv_left.vel_odom_var = [Var_i[0][0], Var_i[1][1], Var_i[2][2], Var_i[0][1], Var_i[0][2], Var_i[1][2]]
                 gv_left.time_gps = [gps_week, gps_seconds]
                 gv_left.aiding_lever_arm_fixed = self.lever_left_i

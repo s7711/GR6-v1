@@ -55,10 +55,12 @@ class MotorController:
         Kp  - proportional gain (*100 int to float)
         Ki  - integral gain (*100 int to float)
         Kv  - velocity feed-forward (*100 int to float)
+        Kd  - acceleration gain (*100 int to float)
         Ka  - acceleration feed-forward (*100 int to float)
         Kb  - bias term (*100 int to float)
         Db  - deadband (raw int)
         Mi  - max integral (raw int)
+        Mj  - min integral (raw int) - should be negative
         Id  - integral decay (*100 int to float)
         """
         try:
@@ -106,6 +108,12 @@ class MotorController:
                     "filtRM_vel": to_f100(parts[2])
                 })
 
+            elif tag == "EA" and len(parts) >= 3:
+                self.motor_state.update({
+                    "filtLM_dErr": to_f100(parts[1]),
+                    "filtRM_dErr": to_f100(parts[2])
+                })
+
             elif tag == "ER" and len(parts) >= 3:
                 self.motor_state.update({
                     "errLM": to_f100(parts[1]),
@@ -142,9 +150,13 @@ class MotorController:
                 self.motor_state["LM_Ki"] = to_f100(parts[1])
                 self.motor_state["RM_Ki"] = to_f100(parts[2])
 
-            elif tag == "Kv" and len(parts) >= 3:
-                self.motor_state["LM_Kv"] = to_f100(parts[1])
-                self.motor_state["RM_Kv"] = to_f100(parts[2])
+            elif tag == "Kd" and len(parts) >= 3:
+                self.motor_state["LM_Kd"] = to_f100(parts[1])
+                self.motor_state["RM_Kd"] = to_f100(parts[2])
+
+            elif tag == "Kf" and len(parts) >= 3:
+                self.motor_state["LM_Kf"] = to_f100(parts[1])
+                self.motor_state["RM_Kf"] = to_f100(parts[2])
 
             elif tag == "Ka" and len(parts) >= 3:
                 self.motor_state["LM_Ka"] = to_f100(parts[1])
@@ -162,6 +174,10 @@ class MotorController:
                 self.motor_state["LM_Mi"] = to_i(parts[1])
                 self.motor_state["RM_Mi"] = to_i(parts[2])
 
+            elif tag == "Mj" and len(parts) >= 3:
+                self.motor_state["LM_Mj"] = to_i(parts[1])
+                self.motor_state["RM_Mj"] = to_i(parts[2])
+
             elif tag == "Id" and len(parts) >= 3:
                 self.motor_state["LM_Id"] = to_f100(parts[1])
                 self.motor_state["RM_Id"] = to_f100(parts[2])
@@ -169,6 +185,9 @@ class MotorController:
             elif tag == "Am" and len(parts) >= 3:
                 self.motor_state["LM_Am"] = float(parts[1])
                 self.motor_state["RM_Am"] = float(parts[2])
+            
+            elif tag == "Version" and len(parts) >= 2:
+                self.motor_state["MotorVersion"] = parts[1]
 
             # else: unrecognized tag—ignore or log if you wish
         except Exception as e:
@@ -182,8 +201,9 @@ class MotorController:
             self.arduino.write((cmd + "\n").encode())
             logging.info("[Arduino]:" + cmd)
     
-    def send(self,lm,rm):
+    def send(self,lm,rm,w):
         self.arduino.write((f"SV {int(lm)} {int(rm)}\n").encode())
+        self.arduino.write((f"WP {int(w)}\n").encode())
 
     def shutdown(self):
         self.running = False

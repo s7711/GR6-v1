@@ -78,6 +78,9 @@
           <p class="meas1">Current Y: <span id="mf2_CurrentY">-</span></p>
           <p class="meas1">Current heading: <span id="mf2_CurrentHeading">-</span></p>
           <p class="meas1">Position accuracy: <span id="mf2_PositionAccuracy">-</span></p>
+          <p class="meas1">Position Error: <span id="mf2_PositionError">-</span></p>
+          <p class="meas1">Integrated Error: <span id="mf2_IntegratedError">-</span></p>
+          <p class="meas1">Path index: <span id="mi_PathIndex">-</span></p>
           <p class="meas1">Yaw Error: <span id="mf2_YawError">-</span></p>
           <p class="meas1">Forward: <span id="mf2_Forward">-</span></p>
           <p class="meas1">Turn: <span id="mf2_Turn">-</span></p>
@@ -85,7 +88,6 @@
           <p class="meas1">Right motor: <span id="mi_RightMotor">-</span></p>
           <p class="meas1">Target X: <span id="mf2_TargetX">-</span></p>
           <p class="meas1">Target Y: <span id="mf2_TargetY">-</span></p>
-          <p class="meas1">Position Error: <span id="mf2_PositionError">-</span></p>
         </div>
       </td>
 
@@ -251,8 +253,8 @@
       const dy = 5.0 * Math.cos(headingRad);
 
       const path = [
-        [x, y, 0.5],  // Start point with speed
-        [x + dx, y + dy, 0.5] 
+        [x, y, 0.5, 0],  // Start point with speed
+        [x + dx, y + dy, 0.5, 0] 
       ];
 
       socket.emit('user-command', '>set-path ' + JSON.stringify(path));

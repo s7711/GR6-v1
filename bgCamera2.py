@@ -24,7 +24,7 @@ class BgCamera:
     def __init__(self):
         self.picam = picamera2.Picamera2()
         self.config = self.picam.create_still_configuration(
-            main={"format": "RGB888", "size": (640, 480)} )
+            main={"format": "RGB888", "size": (1280, 960)} )
         self.picam.configure(self.config)
         self.picam.start()
         self.picam.set_controls({"ExposureValue": 0.7}) 
