@@ -80,6 +80,11 @@
           <p class="meas1">Position accuracy: <span id="mf2_PositionAccuracy">-</span></p>
           <p class="meas1">Position Error: <span id="mf2_PositionError">-</span></p>
           <p class="meas1">Integrated Error: <span id="mf2_IntegratedError">-</span></p>
+          <p class="meas1">Ultrasonic front right: <span id="mf2_U0">-</span></p>
+          <p class="meas1">Ultrasonic back right: <span id="mf2_U1">-</span></p>
+          <p class="meas1">Ultrasonic back: <span id="mf2_U2">-</span></p>
+          <p class="meas1">Ultrasonic back left: <span id="mf2_U3">-</span></p>
+          <p class="meas1">Ultrasonic front left: <span id="mf2_U4">-</span></p>
           <p class="meas1">Path index: <span id="mi_PathIndex">-</span></p>
           <p class="meas1">Yaw Error: <span id="mf2_YawError">-</span></p>
           <p class="meas1">Forward: <span id="mf2_Forward">-</span></p>
@@ -218,6 +223,8 @@
     }
 
     function onMotorData(data) {
+      messages_updateId(data);
+
       // Update motor charts
       const t = new Date();
       chartMotor.data.datasets[0].data.push({ x: t, y: data.LM_setvel });

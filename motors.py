@@ -186,6 +186,9 @@ class MotorController:
                 self.motor_state["LM_Am"] = float(parts[1])
                 self.motor_state["RM_Am"] = float(parts[2])
             
+            elif tag.startswith("U") and len(parts) == 2:
+                self.motor_state[tag] = float(parts[1])*0.001 # Convert to mm
+            
             elif tag == "Version" and len(parts) >= 2:
                 self.motor_state["MotorVersion"] = parts[1]
 
